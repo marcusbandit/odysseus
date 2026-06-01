@@ -40,12 +40,29 @@ function _inferBaseRepo(text) {
 
 export const ERROR_PATTERNS = [
   {
-    pattern: /No available memory for the cache blocks|Available KV cache memory:.*-/i,
-    message: 'No GPU memory left for KV cache after loading model.',
+    pattern: /No available memory for the cache blocks|Available KV cache memory:.*-|estimated maximum model length|KV cache.*is needed.*larger than the available/i,
+    message: 'Model fits but leaves too little room for the KV cache. Offload some weights to CPU, shrink context, or add GPUs.',
     fixes: [
-      { label: 'Retry with GPU mem 0.95', action: (panel) => _serveAutoRetryReplace(panel, '--gpu-memory-utilization', '0.95') },
-      { label: 'Retry with context 2048', action: (panel) => _serveAutoRetryReplace(panel, '--max-model-len', '2048') },
+      // CPU-offload is the reliable fix when a big model *just* fits the card:
+      // it streams some weights from CPU RAM (slower) to free GPU for the KV cache.
+      { label: 'Retry offloading 4 GiB to CPU', action: (panel) => _serveAutoRetry(panel, '--cpu-offload-gb 4') },
+      { label: 'Retry with context 4096', action: (panel) => _serveAutoRetryReplace(panel, '--max-model-len', '4096') },
+      { label: 'Retry with GPU mem 0.90', action: (panel) => _serveAutoRetryReplace(panel, '--gpu-memory-utilization', '0.90') },
       { label: 'Retry with more GPUs (TP=8)', action: (panel) => _serveAutoRetryReplace(panel, '--tensor-parallel-size', '8') },
+    ],
+  },
+  {
+    // vLLM's startup pre-flight check: it needs gpu_memory_utilization * total
+    // VRAM free *before* loading, and aborts if other processes (a desktop
+    // compositor, another model) hold too much. Not a true OOM — nothing is
+    // allocated yet. The message says "GPU memory utilization" with spaces, so
+    // the underscore-form OOM pattern below does not catch it.
+    pattern: /Free memory on device .* less than desired GPU memory utilization|less than desired GPU memory utilization/i,
+    message: 'Not enough free VRAM for the requested utilization at startup (other processes are using the GPU).',
+    fixes: [
+      { label: 'Retry with GPU mem 0.80', action: (panel) => _serveAutoRetryReplace(panel, '--gpu-memory-utilization', '0.80') },
+      { label: 'Retry offloading 4 GiB to CPU', action: (panel) => _serveAutoRetry(panel, '--cpu-offload-gb 4') },
+      { label: 'Retry with --enforce-eager', action: (panel) => _serveAutoRetry(panel, '--enforce-eager') },
     ],
   },
   {
@@ -314,6 +331,29 @@ export const ERROR_PATTERNS = [
         const cmd = host ? _sshCmd(host, pipCmd) : pipCmd;
         _launchServeTask('update-vllm-stack', 'pip-update', cmd);
       }},
+    ],
+  },
+  {
+    // vLLM's FlashInfer sampler JIT-compiles a CUDA kernel at runtime, which
+    // needs nvcc. Runtime-only CUDA setups (the Odysseus Docker image ships the
+    // CUDA runtime but no toolkit) have none. The serve runner auto-sets
+    // VLLM_USE_FLASHINFER_SAMPLER=0 when nvcc is missing; this covers servers
+    // where it still slips through.
+    pattern: /Could not find nvcc|cuda_home=.*does(n't| not) exist|flashinfer\/jit\//i,
+    message: 'vLLM tried to JIT-compile a FlashInfer kernel but this server has no CUDA toolkit (nvcc). Disable the FlashInfer sampler, or install a toolkit.',
+    fixes: [
+      { label: 'Copy: disable FlashInfer sampler', action: () => _copyText('export VLLM_USE_FLASHINFER_SAMPLER=0') },
+    ],
+  },
+  {
+    // A partial flash_attn namespace (flash-attn-4 beta, pulled in by SGLang)
+    // has no flash_attn.ops, so vLLM's find_spec("flash_attn") gate fires and
+    // it crashes Qwen3-VL and similar models. The serve runner neutralizes a
+    // broken flash_attn before launch; this covers other servers.
+    pattern: /No module named ['"]?flash_attn\.ops|flash_attn\.ops\.triton/i,
+    message: 'A broken flash-attn install (flash-attn-4 from SGLang) is shadowing vLLM\'s rotary path. Remove it.',
+    fixes: [
+      { label: 'Copy: remove broken flash-attn', action: () => _copyText('python3 -m pip uninstall -y flash-attn-4') },
     ],
   },
   {

@@ -107,6 +107,23 @@ def setup_cookbook_routes() -> APIRouter:
                 ],
             ),
             (
+                # vLLM's startup pre-flight check wants gpu_memory_utilization *
+                # total_vram free *before* loading, and aborts if other processes
+                # (a desktop compositor, another model) hold too much. Distinct
+                # from a true OOM — nothing is allocated yet. The message says
+                # "GPU memory utilization" with spaces, so the OOM regex above
+                # (which matches the gpu_memory_utilization underscore form) misses
+                # it. CPU-offloading some weights is the reliable fix on a card
+                # that is only slightly short.
+                r"Free memory on device .* less than desired GPU memory utilization|less than desired GPU memory utilization",
+                "Not enough free VRAM for the requested utilization at startup (other processes are using the GPU).",
+                [
+                    {"label": "retry with GPU memory utilization 0.80", "op": "replace", "flag": "--gpu-memory-utilization", "value": "0.80"},
+                    {"label": "retry offloading 4 GiB of weights to CPU RAM", "op": "append", "arg": "--cpu-offload-gb 4"},
+                    {"label": "retry with --enforce-eager", "op": "append", "arg": "--enforce-eager"},
+                ],
+            ),
+            (
                 r"not divisib|must be divisible|attention heads.*divisible",
                 "Tensor parallel size is incompatible with the model.",
                 [
@@ -120,6 +137,19 @@ def setup_cookbook_routes() -> APIRouter:
                 [
                     {"label": "retry with context 8192", "op": "replace", "flag": "--max-model-len", "value": "8192"},
                     {"label": "retry with context 4096", "op": "replace", "flag": "--max-model-len", "value": "4096"},
+                ],
+            ),
+            (
+                # Weights loaded but there is nothing (or not even one max-len
+                # sequence) left for the KV cache. Common when a big model *just*
+                # fits the card. Offloading some weights to CPU RAM is the
+                # reliable fix; shrinking context or raising utilization help too.
+                r"No available memory for the cache blocks|estimated maximum model length|KV cache.*is needed.*larger than the available",
+                "Model fits but leaves too little room for the KV cache.",
+                [
+                    {"label": "retry offloading 4 GiB of weights to CPU RAM", "op": "append", "arg": "--cpu-offload-gb 4"},
+                    {"label": "retry with context 4096", "op": "replace", "flag": "--max-model-len", "value": "4096"},
+                    {"label": "retry with GPU memory utilization 0.90", "op": "replace", "flag": "--gpu-memory-utilization", "value": "0.90"},
                 ],
             ),
             (
@@ -142,6 +172,26 @@ def setup_cookbook_routes() -> APIRouter:
                 # import. The extra constrains kernels to transformers' tested
                 # range and downgrades a too-new kernels back into it.
                 [{"label": "update vLLM/Transformers and pin compatible kernels", "op": "dependency", "package": "vllm transformers[kernels]"}],
+            ),
+            (
+                # vLLM's FlashInfer sampler JIT-compiles a CUDA kernel at runtime,
+                # which needs nvcc. Runtime-only CUDA setups (the Odysseus Docker
+                # image ships the CUDA runtime but no toolkit) have none. The
+                # serve runner now exports VLLM_USE_FLASHINFER_SAMPLER=0 when nvcc
+                # is missing; this covers servers where it still slips through.
+                r"Could not find nvcc|cuda_home=.*does(n't| not) exist|flashinfer/jit/",
+                "vLLM tried to JIT-compile a FlashInfer kernel but this server has no CUDA toolkit (nvcc).",
+                [{"label": "set VLLM_USE_FLASHINFER_SAMPLER=0 (or install a CUDA toolkit with nvcc) and relaunch", "op": "manual"}],
+            ),
+            (
+                # A partial flash_attn namespace (flash-attn-4 beta, pulled in by
+                # SGLang) has no flash_attn.ops, so vLLM's find_spec("flash_attn")
+                # gate fires and it crashes Qwen3-VL and similar models. The serve
+                # runner now neutralizes a broken flash_attn before launch; this
+                # covers other servers.
+                r"No module named 'flash_attn\.ops'|flash_attn\.ops\.triton|No module named flash_attn\.ops",
+                "A broken flash-attn install (flash-attn-4 from SGLang) is shadowing vLLM's rotary path.",
+                [{"label": "remove the broken flash-attn (pip uninstall -y flash-attn-4, or delete the empty flash_attn dir) and relaunch", "op": "manual"}],
             ),
             (
                 r"Address already in use|bind.*address.*in use",
@@ -1045,6 +1095,25 @@ def setup_cookbook_routes() -> APIRouter:
                 runner_lines.append('if ! command -v vllm &>/dev/null; then')
                 runner_lines.append('  echo "ERROR: vLLM is not installed. Open Cookbook -> Dependencies and install vllm on this server, then launch again."')
                 runner_lines.append('  exit 127')
+                runner_lines.append('fi')
+                # vLLM's FlashInfer top-p/top-k sampler JIT-compiles a CUDA
+                # kernel on first use, which needs nvcc. Runtime-only CUDA
+                # setups (the Odysseus Docker image ships the CUDA runtime but
+                # no toolkit) have no nvcc, so engine init dies with "Could not
+                # find nvcc and default cuda_home='/usr/local/cuda' doesn't
+                # exist". Fall back to the native PyTorch sampler when nvcc is
+                # absent; leave FlashInfer enabled where a real toolkit exists.
+                runner_lines.append('command -v nvcc >/dev/null 2>&1 || export VLLM_USE_FLASHINFER_SAMPLER=0')
+                # SGLang pulls in flash-attn-4 (beta), which drops a partial
+                # `flash_attn` namespace with no `flash_attn.ops`. vLLM's
+                # find_spec("flash_attn") then returns truthy and it takes the
+                # flash_attn rotary path, crashing Qwen3-VL and similar models
+                # with "No module named 'flash_attn.ops'". Neutralize a
+                # flash_attn that lacks the .ops API so vLLM falls back to its
+                # native rotary. Only acts when the install is actually broken.
+                runner_lines.append('if python3 -c "import flash_attn" 2>/dev/null && ! python3 -c "import flash_attn.ops" 2>/dev/null; then')
+                runner_lines.append('  _fa=$(python3 -c "import flash_attn;print(next(iter(flash_attn.__path__),\'\'))" 2>/dev/null)')
+                runner_lines.append('  [ -n "$_fa" ] && rm -rf "$_fa" && echo "Removed broken flash_attn namespace: $_fa"')
                 runner_lines.append('fi')
             elif "sglang.launch_server" in req.cmd:
                 runner_lines.append('export PATH="$HOME/.local/bin:$PATH"')
