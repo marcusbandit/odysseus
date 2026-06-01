@@ -297,12 +297,20 @@ export const ERROR_PATTERNS = [
     pattern: /Either a revision or a version must be specified|transformers\.integrations\.hub_kernels|kernels\/layer/i,
     message: 'vLLM/Transformers kernel package mismatch.',
     fixes: [
-      { label: 'Update vLLM/Transformers/kernels', action: (panel) => {
+      { label: 'Update vLLM/Transformers, pin compatible kernels', action: (panel) => {
         const taskEl = panel.closest('.cookbook-task');
         const task = taskEl ? _loadTasks().find(t => t.sessionId === taskEl.dataset.taskId) : null;
         const host = task?.remoteHost || '';
         const prefix = _buildEnvPrefix();
-        const pipCmd = prefix ? prefix + ' python3 -m pip install -U vllm transformers kernels' : 'python3 -m pip install -U vllm transformers kernels';
+        // Install kernels via the transformers[kernels] extra, NOT bare `kernels`.
+        // `pip install -U kernels` grabs the latest (e.g. 0.15.x), whose
+        // LayerRepository requires a revision/version that transformers' built-in
+        // _KERNEL_MAPPING does not pass — crashing every import with
+        // "Either a revision or a version must be specified." The extra pins
+        // kernels to transformers' tested range (currently >=0.12,<0.13) and
+        // downgrades a too-new kernels back into range.
+        const base = 'python3 -m pip install -U vllm "transformers[kernels]"';
+        const pipCmd = prefix ? prefix + ' ' + base : base;
         const cmd = host ? _sshCmd(host, pipCmd) : pipCmd;
         _launchServeTask('update-vllm-stack', 'pip-update', cmd);
       }},

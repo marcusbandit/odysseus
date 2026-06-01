@@ -135,7 +135,13 @@ def setup_cookbook_routes() -> APIRouter:
             (
                 r"Either a revision or a version must be specified|transformers\.integrations\.hub_kernels|kernels/layer",
                 "vLLM/Transformers kernel package mismatch.",
-                [{"label": "update vLLM, Transformers, and kernels on this server", "op": "dependency", "package": "vllm transformers kernels"}],
+                # Pin kernels through the transformers[kernels] extra, never bare
+                # `kernels`. `pip install -U kernels` pulls the latest (0.15.x),
+                # whose LayerRepository demands a revision/version that
+                # transformers' built-in _KERNEL_MAPPING omits — crashing every
+                # import. The extra constrains kernels to transformers' tested
+                # range and downgrades a too-new kernels back into it.
+                [{"label": "update vLLM/Transformers and pin compatible kernels", "op": "dependency", "package": "vllm transformers[kernels]"}],
             ),
             (
                 r"Address already in use|bind.*address.*in use",
