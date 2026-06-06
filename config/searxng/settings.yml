@@ -7,3 +7,24 @@ search:
   formats:
     - html
     - json
+
+# Custom engines are MERGED into SearXNG's defaults by `name` (because
+# use_default_settings is true) — a new name is appended, it does not
+# replace the built-in engine list.
+engines:
+  # `!gm` -> one result that links to the REAL Google Maps
+  # (https://maps.google.com/maps?q=<query>). Implemented by the offline
+  # engine module mounted at searx/engines/google_maps.py (see the bind
+  # mount in docker-compose.yml).
+  #
+  # `disabled: false` overrides the module's default (it ships disabled)
+  # so it ALSO runs on every Map-tab search, not just via `!gm`.
+  # `weight: 100` pins its "Open in Google Maps" result to the TOP: result
+  # score == engine weight (searx/results.py), and OpenStreetMap places
+  # only reach ~1-3, so 100 always wins. The `!gm` bang still works too.
+  - name: google maps
+    engine: google_maps
+    shortcut: gm
+    categories: [map]
+    disabled: false
+    weight: 100
