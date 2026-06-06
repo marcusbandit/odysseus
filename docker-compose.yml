@@ -98,6 +98,9 @@ services:
     volumes:
       - searxng-data:/etc/searxng
       - ./config/searxng/settings.yml:/tmp/searxng-settings.yml.template:ro,z
+      # Custom `!gm` -> Google Maps engine, referenced as `engine: google_maps`
+      # in settings.yml. Mounted into SearXNG's engine package.
+      - ./config/searxng/google_maps.py:/usr/local/searxng/searx/engines/google_maps.py:ro,z
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080/
       - SEARXNG_SECRET=${SEARXNG_SECRET:-}
