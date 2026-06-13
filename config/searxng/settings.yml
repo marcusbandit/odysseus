@@ -4,6 +4,11 @@ server:
   secret_key: "__SEARXNG_SECRET__"
 
 search:
+  # Search-box query suggestions. Proxied through this SearXNG server to the
+  # chosen provider (the browser never talks to it directly). autocomplete_min
+  # = chars typed before suggestions fire.
+  autocomplete: "duckduckgo"
+  autocomplete_min: 2
   formats:
     - html
     - json
