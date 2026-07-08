@@ -92,13 +92,23 @@ services:
       - -c
       - |
         set -eu
-        if [ ! -s /etc/searxng/settings.yml ] || grep -q 'odysseus-local-searxng-json-2026-05-30\|__SEARXNG_SECRET__' /etc/searxng/settings.yml; then
-          secret="$${SEARXNG_SECRET:-}"
-          if [ -z "$$secret" ]; then
-            secret="$$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-          fi
-          sed "s|__SEARXNG_SECRET__|$$secret|g" /tmp/searxng-settings.yml.template > /etc/searxng/settings.yml
+        # Always render settings.yml from the mounted template so that config
+        # edits land on every boot (the old "render once" logic meant template
+        # changes silently never applied). The secret survives re-renders:
+        # prefer $SEARXNG_SECRET, else reuse the one already in the rendered
+        # file, else mint a fresh one.
+        secret="$${SEARXNG_SECRET:-}"
+        if [ -z "$$secret" ] && [ -s /etc/searxng/settings.yml ]; then
+          secret="$$(sed -n 's/^ *secret_key: *"\([^"]*\)".*/\1/p' /etc/searxng/settings.yml | head -n 1)"
         fi
+        if [ -z "$$secret" ] || [ "$$secret" = "__SEARXNG_SECRET__" ]; then
+          secret="$$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+        fi
+        sed "s|__SEARXNG_SECRET__|$$secret|g" /tmp/searxng-settings.yml.template > /etc/searxng/settings.yml
+        # searx.data's SQLite cache expires its rows after 7 days of uptime
+        # but keeps its "loaded" flag, silently breaking currency/tracker
+        # data lookups. Purge it on boot so it rebuilds fresh.
+        rm -f /tmp/sxng_cache_DATA_CACHE.db*
         exec /usr/local/searxng/entrypoint.sh
     ports:
       - "127.0.0.1:8080:8080"
@@ -108,6 +118,9 @@ services:
       # Custom `!gm` -> Google Maps engine, referenced as `engine: google_maps`
       # in settings.yml. Mounted into SearXNG's engine package.
       - ./config/searxng/google_maps.py:/usr/local/searxng/searx/engines/google_maps.py:ro,z
+      # Custom Google-style currency instant answers ("400 usd" -> DKK),
+      # registered in settings.yml as searx.plugins.currency_answer.SXNGPlugin.
+      - ./config/searxng/currency_answer.py:/usr/local/searxng/searx/plugins/currency_answer.py:ro,z
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080/
       - SEARXNG_SECRET=${SEARXNG_SECRET:-}

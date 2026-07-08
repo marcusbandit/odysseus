@@ -6,16 +6,62 @@ server:
 search:
   # Search-box query suggestions. Proxied through this SearXNG server to the
   # chosen provider (the browser never talks to it directly). autocomplete_min
-  # = chars typed before suggestions fire.
-  autocomplete: "duckduckgo"
+  # = chars typed before suggestions fire. Google gives the best suggestions;
+  # switch back to "duckduckgo" if Google ever rate-limits this instance.
+  autocomplete: "google"
   autocomplete_min: 2
   formats:
     - html
     - json
 
+# NOTE: unlike `engines` (merged by name), a `plugins:` section REPLACES the
+# default plugin map wholesale (searx/settings_loader.py, update_settings), so
+# every default plugin we want active must be restated here. The values below
+# mirror the image defaults for searxng 2026.5.31; only currency_answer is
+# custom.
+plugins:
+  # Custom: Google-style currency instant answers ("400 usd" -> DKK card,
+  # also "$400", "400 kr", "400 usd in eur"). Module is bind mounted at
+  # searx/plugins/currency_answer.py (see docker-compose.yml). It replaces
+  # the built-in `currency` engine (disabled below), which only understood
+  # the "X usd to Y" form and is silently killed by a searx.data cache
+  # expiry bug after 7 days of uptime.
+  searx.plugins.currency_answer.SXNGPlugin:
+    active: true
+
+  # Image defaults below (restated because this map does not merge).
+  # calculator solves "2+2*3" style queries (client-side JS in this version,
+  # so it works in the browser UI but never appears in format=json output).
+  searx.plugins.calculator.SXNGPlugin:
+    active: true
+  # "md5 foo", "sha256 foo", ...
+  searx.plugins.hash_plugin.SXNGPlugin:
+    active: true
+  # "ip", "user-agent"
+  searx.plugins.self_info.SXNGPlugin:
+    active: true
+  # "100 cm in m", "5 km in miles", ...
+  searx.plugins.unit_converter.SXNGPlugin:
+    active: true
+  # "time berlin", "now tokyo", ...
+  searx.plugins.time_zone.SXNGPlugin:
+    active: true
+  searx.plugins.ahmia_filter.SXNGPlugin:
+    active: true
+  searx.plugins.hostnames.SXNGPlugin:
+    active: true
+  searx.plugins.tracker_url_remover.SXNGPlugin:
+    active: true
+  searx.plugins.infinite_scroll.SXNGPlugin:
+    active: false
+  searx.plugins.oa_doi_rewrite.SXNGPlugin:
+    active: false
+  searx.plugins.tor_check.SXNGPlugin:
+    active: false
+
 # Custom engines are MERGED into SearXNG's defaults by `name` (because
-# use_default_settings is true) — a new name is appended, it does not
-# replace the built-in engine list.
+# use_default_settings is true): a new name is appended, a known name has its
+# keys updated into the built-in definition, it does not replace the list.
 engines:
   # `!gm` -> one result that links to the REAL Google Maps
   # (https://maps.google.com/maps?q=<query>). Implemented by the offline
@@ -33,3 +79,18 @@ engines:
     categories: [map]
     disabled: false
     weight: 100
+
+  # Built-in "400 usd to eur" converter, superseded by the currency_answer
+  # plugin above (which also handles bare "400 usd" and does not depend on
+  # the expiring searx.data cache). The `!cc` bang still reaches it.
+  - name: currency
+    disabled: true
+
+  # Google-parity instant definitions on the general tab (DuckDuckGo's
+  # instant-answer API; low weight, only fires on definition-ish queries).
+  - name: ddg definitions
+    disabled: false
+
+  # Weather via Open-Meteo: `!om copenhagen` or the weather category.
+  - name: openmeteo
+    disabled: false
