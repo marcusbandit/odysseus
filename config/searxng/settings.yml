@@ -23,6 +23,13 @@ ui:
   # j/k result navigation and friends (overridable per user in preferences).
   hotkeys: vim
 
+# Latency caps for the engine fan-out: the page waits for the slowest
+# engine, so cap it. Default request_timeout is 3.0 with max 10.0; measured
+# engines here answer well under 2s or not at all.
+outgoing:
+  request_timeout: 2.0
+  max_request_timeout: 6.0
+
 # The caelestia look itself lives in two bind mounts (see docker-compose.yml):
 # a patched templates/simple/base.html that links two extra stylesheets, and
 # the static custom/ dir holding caelestia.css (hand written) + scheme.css
@@ -141,4 +148,17 @@ engines:
   - name: npm
     disabled: false
   - name: crates.io
+    disabled: false
+
+  # General-tab engine diet, measured 2026-07-09: google scrapes an empty
+  # page (0 results, consent wall) and startpage is permanently CAPTCHA
+  # suspended, both just waste a request per search; bing (0.2s) and mojeek
+  # (0.4s, independent index) work. duckduckgo + brave stay on.
+  - name: google
+    disabled: true
+  - name: startpage
+    disabled: true
+  - name: bing
+    disabled: false
+  - name: mojeek
     disabled: false

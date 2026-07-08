@@ -27,6 +27,8 @@ from searx.network import get as http_get
 from searx.plugins import Plugin, PluginInfo
 from searx.result_types import EngineResults, WeatherAnswer
 
+from searx.plugins.cael._prefetch import await_prefetch, prefetch
+
 if typing.TYPE_CHECKING:
     from searx.search import SearchWithPlugins
     from searx.extended_types import SXNG_Request
@@ -121,6 +123,24 @@ class SXNGPlugin(Plugin):
             preference_section="query",
         )
 
+    def pre_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> bool:
+        # geocode + forecast fetches overlap the engine fan-out; both write
+        # their own caches, post_search then reads them warm
+        sq = search.search_query
+        if sq.pageno == 1:
+            words = sq.query.split()
+            if words and words[0] in self.keywords:
+                place = " ".join(words[1:]).strip() or DEFAULT_LOCATION
+
+                def _warm():
+                    try:
+                        _fetch_forecast(weather.GeoLocation.by_query(place))
+                    except ValueError:
+                        pass
+
+                prefetch("weather:" + place.lower(), _warm)
+        return True
+
     def post_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> EngineResults:
         results = EngineResults()
         sq = search.search_query
@@ -131,6 +151,8 @@ class SXNGPlugin(Plugin):
         if not words or words[0] not in self.keywords:
             return results
         place = " ".join(words[1:]).strip() or DEFAULT_LOCATION
+        # join the pre_search prefetch so the reads below hit warm caches
+        await_prefetch("weather:" + place.lower(), lambda: None)
 
         try:
             location = weather.GeoLocation.by_query(place)

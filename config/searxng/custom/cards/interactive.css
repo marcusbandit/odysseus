@@ -1,0 +1,228 @@
+/* interactive layer for the stock and currency hero cards (custom/cards.js).
+ * Loaded after caelestia.css and the per-card css. Everything below
+ * (.cael-chart*, .cael-pill, .cael-cross, .cael-tip) is built client-side;
+ * the converter controls (.cael-cur-*) are server-rendered.
+ * Colors: --cael-* tokens only (color-mix allowed). */
+
+/* ==== chart block (shared by stock + currency) ==== */
+
+.cael-chart {
+  margin-top: 0.75rem;
+  min-width: 0;
+}
+
+.cael-chart-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.cael-pill {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--cael-onSurfaceVariant);
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cael-pill:hover {
+  background: color-mix(in srgb, var(--cael-primary) 10%, transparent);
+}
+
+.cael-pill.selected {
+  background: var(--cael-secondaryContainer);
+  color: var(--cael-onSecondaryContainer);
+}
+
+.cael-pill:focus-visible {
+  outline: 2px solid var(--cael-primary);
+  outline-offset: 1px;
+}
+
+/* live range-span label, replaces the server's static .cael-stock-period */
+.cael-chart-period {
+  margin-left: auto;
+  color: var(--cael-outline);
+  font-size: 0.78rem;
+}
+
+.cael-chart-wrap {
+  position: relative;
+  height: 150px;
+  margin-top: 0.5rem;
+  border-radius: 14px;
+  overflow: hidden;
+  touch-action: pan-y;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cael-currency .cael-chart-wrap {
+  height: 130px;
+}
+
+/* the whole chart paints in currentColor: line stroke, area gradient, dot */
+.cael-chart-wrap.up {
+  color: var(--cael-success);
+}
+
+.cael-chart-wrap.down {
+  color: var(--cael-error);
+}
+
+.cael-chart-wrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ==== crosshair ==== */
+
+.cael-cross {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+
+.cael-cross.show {
+  opacity: 1;
+}
+
+.cael-cross line {
+  stroke: var(--cael-outlineVariant);
+}
+
+.cael-cross ellipse {
+  fill: currentColor;
+}
+
+/* ==== tooltip ==== */
+
+.cael-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  background: var(--cael-surfaceContainerHighest);
+  border-radius: 10px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--cael-shadow) 40%, transparent);
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.cael-tip.show {
+  opacity: 1;
+}
+
+.cael-tip-date {
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.72rem;
+}
+
+.cael-tip-value {
+  font-weight: 500;
+  color: var(--cael-onSurface);
+}
+
+/* ==== currency converter controls ==== */
+
+.cael-currency .cael-cur-in {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--cael-surfaceContainer);
+  border: 1px solid var(--cael-outlineVariant);
+  border-radius: 14px;
+  padding: 0.5rem 0.8rem;
+  width: 8.5rem;
+  min-width: 0;
+  text-align: right;
+  font: inherit;
+  font-size: 1.05rem;
+  color: var(--cael-onSurface);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cael-currency .cael-cur-in:focus {
+  outline: none;
+  border-color: var(--cael-primary);
+  background: var(--cael-surfaceContainerHigh);
+}
+
+.cael-currency .cael-cur-in::placeholder {
+  color: var(--cael-outline);
+}
+
+/* no spinners, even if the inputs ever become type=number */
+.cael-currency .cael-cur-in::-webkit-outer-spin-button,
+.cael-currency .cael-cur-in::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.cael-currency input.cael-cur-in[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.cael-currency .cael-cur-code {
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.06em;
+  margin-left: 0.4rem;
+}
+
+.cael-currency .cael-cur-swap {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--cael-onSurfaceVariant);
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cael-currency .cael-cur-swap:hover {
+  background: color-mix(in srgb, var(--cael-primary) 12%, transparent);
+  color: var(--cael-primary);
+}
+
+.cael-currency .cael-cur-swap:focus-visible {
+  outline: 2px solid var(--cael-primary);
+  outline-offset: 1px;
+}
+
+/* ==== motion ==== */
+
+@media (prefers-reduced-motion: reduce) {
+  .cael-pill,
+  .cael-cross,
+  .cael-tip,
+  .cael-currency .cael-cur-in,
+  .cael-currency .cael-cur-swap {
+    transition: none;
+  }
+}

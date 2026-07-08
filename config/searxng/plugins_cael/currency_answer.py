@@ -25,12 +25,18 @@ import threading
 import time
 import typing
 
+from calendar import timegm
+from datetime import date, timedelta
+
 from flask_babel import format_decimal
 
 from searx.data.currencies import CurrenciesDB
 from searx.network import get as http_get
 from searx.plugins import Plugin, PluginInfo
 from searx.result_types import EngineResults
+from searx.result_types.answer import BaseAnswer
+
+from searx.plugins.cael._prefetch import prefetch, await_prefetch
 
 if typing.TYPE_CHECKING:
     from searx.search import SearchWithPlugins
@@ -43,6 +49,14 @@ DEFAULT_TARGET = "DKK"
 FALLBACK_TARGET = "EUR"
 
 RATES_URL = "https://duckduckgo.com/js/spice/currency/1/{frm}/{to}"
+# daily FX history (ECB reference rates via frankfurter, no key, ~30 majors);
+# powers the interactive chart, silently skipped for unsupported pairs
+SERIES_URL = "https://api.frankfurter.dev/v1/{start}..{end}?base={frm}&symbols={to}"
+SERIES_TTL = 21600  # 6 h
+ECB_CURRENCIES = frozenset(
+    "AUD BGN BRL CAD CHF CNY CZK DKK EUR GBP HKD HUF IDR ILS INR ISK JPY KRW "
+    "MXN MYR NOK NZD PHP PLN RON SEK SGD THB TRY USD ZAR".split()
+)
 ANSWER_URL = "https://www.google.com/finance/quote/{frm}-{to}"
 RATE_TTL = 600  # seconds
 
@@ -86,6 +100,75 @@ _iso: dict[str, dict[str, str]] = {}
 
 _rates_lock = threading.Lock()
 _rates: dict[tuple[str, str], tuple[float, float]] = {}
+
+_series_lock = threading.Lock()
+_series: dict[tuple[str, str], tuple[str, float]] = {}
+
+
+class CurrencyAnswer(BaseAnswer, kw_only=True):
+    """Structured conversion answer consumed by the interactive card."""
+
+    template: str = "answer/cael/currency.html"
+    answer: str
+    frm: str
+    to: str
+    frm_name: str
+    to_name: str
+    amount: str
+    """Raw float repr of the queried amount (input prefill)."""
+    converted: str
+    """Raw float repr of the converted amount (input prefill)."""
+    rate: str
+    """Raw full-precision float repr, consumed by cards.js."""
+    amount_fmt: str
+    converted_fmt: str
+    rate_fmt: str
+    series: str
+    """JSON {"t": [...], "v": [...]} of about one year of daily ECB rates,
+    or empty when the pair is outside the ECB set."""
+
+    def __hash__(self):
+        return hash(self.answer)
+
+
+def _fetch_series(frm: str, to: str) -> str:
+    """One year of daily rates as compact JSON, "" when unavailable."""
+    if frm == to or frm not in ECB_CURRENCIES or to not in ECB_CURRENCIES:
+        return ""
+    key = (frm, to)
+    now = time.monotonic()
+    with _series_lock:
+        hit = _series.get(key)
+        if hit and now - hit[1] < SERIES_TTL:
+            return hit[0]
+    out = ""
+    try:
+        end = date.today()
+        start = end - timedelta(days=370)
+        resp = http_get(
+            SERIES_URL.format(start=start.isoformat(), end=end.isoformat(), frm=frm, to=to),
+            timeout=3.0,
+        )
+        rates = resp.json()["rates"]
+        ts, vs = [], []
+        for day in sorted(rates):
+            val = rates[day].get(to)
+            if val is None:
+                continue
+            y, mo, d = (int(x) for x in day.split("-"))
+            # midnight UTC of the ECB fixing date, matches cards.js labels
+            ts.append(timegm((y, mo, d, 0, 0, 0)))
+            vs.append(round(float(val), 6))
+        if vs:
+            out = json.dumps({"t": ts, "v": vs}, separators=(",", ":"))
+    except Exception:  # pylint: disable=broad-except
+        out = ""
+    with _series_lock:
+        _series[key] = (out, now)
+    return out
+
+
+
 
 
 def _load_db() -> None:
@@ -224,6 +307,18 @@ class SXNGPlugin(Plugin):
             preference_section="query",
         )
 
+    def pre_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> bool:
+        # rate + history fetches overlap the engine fan-out
+        if search.search_query.pageno == 1:
+            parsed = _parse_query(search.search_query.query)
+            if parsed is not None:
+                _, frm, to = parsed
+                prefetch(
+                    "currency:" + frm + ":" + to,
+                    lambda: (_get_rate(frm, to), _fetch_series(frm, to)),
+                )
+        return True
+
     def post_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> EngineResults:
         results = EngineResults()
         if search.search_query.pageno > 1:
@@ -234,27 +329,38 @@ class SXNGPlugin(Plugin):
             return results
         amount, frm, to = parsed
 
-        rate = _get_rate(frm, to)
+        rate, series = await_prefetch(
+            "currency:" + frm + ":" + to,
+            lambda: (_get_rate(frm, to), _fetch_series(frm, to)),
+        )
         if rate is None:
             return results
 
+        converted = amount * rate
         answer = "{amt} {frm_name} = {conv} {to_name} (1 {frm} = {rate} {to})".format(
             amt=_fmt(amount),
             frm_name=_iso_name(frm),
-            conv=_fmt(amount * rate),
+            conv=_fmt(converted),
             to_name=_iso_name(to),
             frm=frm,
             rate=_fmt(rate, 4),
             to=to,
         )
         results.add(
-            results.types.Answer(
+            CurrencyAnswer(
                 answer=answer,
                 url=ANSWER_URL.format(frm=frm, to=to),
-                # custom hero-card template (bind mounted, see docker-compose.yml);
-                # it splits the answer string on the exact " = " / " (" separators
-                # produced above, so keep the format string and template in sync
-                template="answer/cael/currency.html",
+                frm=frm,
+                to=to,
+                frm_name=_iso_name(frm),
+                to_name=_iso_name(to),
+                amount=str(int(amount)) if amount == int(amount) else repr(round(amount, 6)),
+                converted=f"{converted:.2f}",
+                rate=repr(float(rate)),
+                amount_fmt=_fmt(amount),
+                converted_fmt=_fmt(converted),
+                rate_fmt=_fmt(rate, 4),
+                series=series,
             )
         )
         return results

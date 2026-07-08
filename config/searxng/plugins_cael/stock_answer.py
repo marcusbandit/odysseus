@@ -9,9 +9,12 @@ name through Yahoo's search endpoint, and bare queries containing an
 ALL-CAPS token (``TSMC taiwan semiconductors``) resolve when the match is
 unambiguous (symbol relates to the caps token; with extra words, at least
 one must overlap the matched company name, so ``DTU exam dates`` stays
-clean). Quotes come from Yahoo's public v8 chart endpoint (range=1mo,
-interval=1d) and are cached in-process for five minutes per ticker; any API
-failure or unknown ticker silently yields no answer, never a broken search.
+clean). Quotes come from Yahoo's public v8 chart endpoint (range=1y,
+interval=1d, fetched in a pre_search background thread so the API call runs
+concurrently with the engine fan-out) and are cached in-process for five
+minutes per ticker; any API failure or unknown ticker silently yields no
+answer, never a broken search. The year of daily closes is embedded in the
+card as JSON and custom/cards.js turns it into an interactive range chart.
 
 Rendered by the custom template ``answer/cael/stock.html`` (bind mounted,
 like this file; see docker-compose.yml).
@@ -24,6 +27,8 @@ import threading
 import time
 import typing
 
+import json
+
 from urllib.parse import quote as url_quote
 
 from flask_babel import format_decimal
@@ -32,6 +37,8 @@ from searx.network import get as http_get
 from searx.plugins import Plugin, PluginInfo
 from searx.result_types import EngineResults
 from searx.result_types.answer import BaseAnswer
+
+from searx.plugins.cael._prefetch import prefetch, await_prefetch
 
 if typing.TYPE_CHECKING:
     from searx.search import SearchWithPlugins
@@ -42,7 +49,7 @@ TEMPLATE = "answer/cael/stock.html"
 
 # Yahoo answers plain JSON on the chart endpoint, but only with a
 # browser-like User-Agent; the default httpx/curl UAs get HTTP 429.
-API_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1mo&interval=1d"
+API_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1y&interval=1d"
 SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search?q={q}&quotesCount=5&newsCount=0"
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64)"
 ANSWER_URL = "https://finance.yahoo.com/quote/{symbol}"
@@ -97,6 +104,9 @@ class StockAnswer(BaseAnswer, kw_only=True):
     spark_path: str
     spark_end_x: str
     spark_end_y: str
+    series: str
+    """JSON {"t": [...], "v": [...]} of about one year of daily closes,
+    consumed by custom/cards.js for the interactive range chart."""
 
     def __hash__(self):
         return hash(self.answer)
@@ -292,7 +302,14 @@ def _fetch_quote(symbol: str) -> dict | None:
         result = chart["result"][0]
         meta = result["meta"]
         price = float(meta["regularMarketPrice"])
-        closes = [float(c) for c in result["indicators"]["quote"][0]["close"] if c is not None]
+        stamps = result.get("timestamp") or []
+        raw_closes = result["indicators"]["quote"][0]["close"]
+        pairs = [
+            (int(t), float(c))
+            for t, c in zip(stamps, raw_closes)
+            if t is not None and c is not None
+        ]
+        closes = [c for _, c in pairs]
         if not closes:
             return None
         # meta.previousClose is absent on range=1mo requests and
@@ -312,6 +329,7 @@ def _fetch_quote(symbol: str) -> dict | None:
             "currency": meta.get("currency") or "",
             "name": meta.get("shortName") or meta.get("longName") or symbol,
             "closes": closes,
+            "pairs": pairs,
         }
     except Exception:  # pylint: disable=broad-except
         # any failure means "no answer", never a broken search
@@ -356,6 +374,29 @@ def _signed(value: float, suffix: str = "") -> str:
     return sign + _fmt(abs(value)) + suffix
 
 
+def _full_lookup(kind: str, payload: str) -> tuple[str, dict] | None:
+    """Trigger -> (symbol, quote data), every step backed by its own cache."""
+    if kind == "ticker":
+        symbol = payload
+    else:
+        if kind == "bare":
+            caps = [w for w in payload.split() if CAPS_TOKEN_RE.match(w)]
+            resolved = _resolve_name(" ".join(caps), hint=caps[0])
+        else:
+            resolved = _resolve_name(payload)
+        if resolved is None:
+            return None
+        symbol, longname = resolved
+        if kind == "bare":
+            if not _bare_match_ok(payload, symbol, [longname]):
+                return None
+            symbol, longname = _canonicalize(symbol, longname)
+    data = _fetch_quote(symbol)
+    if data is None:
+        return None
+    return symbol, data
+
+
 @typing.final
 class SXNGPlugin(Plugin):
     """Stock quote card for "<ticker> stock" / "$TICKER" queries."""
@@ -377,6 +418,15 @@ class SXNGPlugin(Plugin):
             preference_section="query",
         )
 
+    def pre_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> bool:
+        # kick the whole lookup off in a background thread so the API round
+        # trips overlap the engine fan-out instead of following it
+        if search.search_query.pageno == 1:
+            trigger = _extract_trigger(search.search_query.query)
+            if trigger is not None:
+                prefetch("stock:" + search.search_query.query, lambda: _full_lookup(*trigger))
+        return True
+
     def post_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> EngineResults:
         results = EngineResults()
         if search.search_query.pageno > 1:
@@ -385,41 +435,29 @@ class SXNGPlugin(Plugin):
         trigger = _extract_trigger(search.search_query.query)
         if trigger is None:
             return results
-        kind, payload = trigger
 
-        if kind == "ticker":
-            symbol = payload
-        else:
-            if kind == "bare":
-                # search only the caps tokens (robust against typos in the
-                # surrounding words: "TSMC Tiwan semi conductord"), score by
-                # the first caps token, then canonicalize to the primary
-                # listing via the company's long name
-                caps = [w for w in payload.split() if CAPS_TOKEN_RE.match(w)]
-                resolved = _resolve_name(" ".join(caps), hint=caps[0])
-            else:
-                resolved = _resolve_name(payload)
-            if resolved is None:
-                return results
-            symbol, longname = resolved
-            if kind == "bare":
-                if not _bare_match_ok(payload, symbol, [longname]):
-                    return results
-                symbol, longname = _canonicalize(symbol, longname)
-
-        data = _fetch_quote(symbol)
-        if data is None:
+        found = await_prefetch("stock:" + search.search_query.query, lambda: _full_lookup(*trigger))
+        if found is None:
             return results
+        symbol, data = found
 
-        change = data["price"] - data["prev"]
-        change_pct = change / data["prev"] * 100.0
+        pairs = data.get("pairs") or [(0, c) for c in data["closes"]]
+        month_ago = time.time() - 30 * 86400
+        month = [c for t, c in pairs if t >= month_ago] or data["closes"]
+        base = month[0] if month[0] else data["prev"]
+        change = data["price"] - base
+        change_pct = change / base * 100.0 if base else 0.0
         price_str = _fmt(data["price"])
         change_pct_str = _signed(change_pct, "%")
-        spark_path, end_x, end_y = _spark(data["closes"])
+        spark_path, end_x, end_y = _spark(month)
+        series = json.dumps(
+            {"t": [t for t, _ in pairs], "v": [round(c, 4) for _, c in pairs]},
+            separators=(",", ":"),
+        )
 
         results.add(
             StockAnswer(
-                answer="{sym} ({name}) {price} {cur}, {pct} past day".format(
+                answer="{sym} ({name}) {price} {cur}, {pct} past month".format(
                     sym=symbol,
                     name=data["name"],
                     price=price_str,
@@ -437,6 +475,7 @@ class SXNGPlugin(Plugin):
                 spark_path=spark_path,
                 spark_end_x=end_x,
                 spark_end_y=end_y,
+                series=series,
             )
         )
         return results

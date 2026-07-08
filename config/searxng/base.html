@@ -28,6 +28,10 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='custom/cards/define.css') }}" type="text/css" media="screen">
   <link rel="stylesheet" href="{{ url_for('static', filename='custom/cards/color.css') }}" type="text/css" media="screen">
   <link rel="stylesheet" href="{{ url_for('static', filename='custom/cards/stock.css') }}" type="text/css" media="screen">
+  <link rel="stylesheet" href="{{ url_for('static', filename='custom/cards/interactive.css') }}" type="text/css" media="screen">
+  {#- progressive enhancement for the stock/currency cards: range charts,
+      crosshair tooltips, converter inputs (custom/cards.js) -#}
+  <script src="{{ url_for('static', filename='custom/cards.js') }}" defer></script>
   {% if get_setting('server.limiter') or get_setting('server.public_instance') %}
   <link rel="stylesheet" href="{{ url_for('client_token', token=link_token) }}" type="text/css">
   {% endif %}

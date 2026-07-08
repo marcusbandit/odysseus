@@ -23,6 +23,7 @@ import msgspec
 
 from searx.network import get as http_get
 from searx.plugins import Plugin, PluginInfo
+from searx.plugins.cael._prefetch import await_prefetch, prefetch
 from searx.result_types import EngineResults
 from searx.result_types.answer import BaseAnswer
 
@@ -250,6 +251,14 @@ class SXNGPlugin(Plugin):
             preference_section="query",
         )
 
+    def pre_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> bool:
+        # dictionary API fetch overlaps the engine fan-out
+        if search.search_query.pageno == 1:
+            term = _parse_query(search.search_query.query)
+            if term:
+                prefetch("define:" + term.lower(), lambda: _fetch_entries(term))
+        return True
+
     def post_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> EngineResults:
         results = EngineResults()
         if search.search_query.pageno > 1:
@@ -259,6 +268,7 @@ class SXNGPlugin(Plugin):
         if term is None:
             return results
 
+        await_prefetch("define:" + term.lower(), lambda: None)
         entries = _fetch_entries(term)
         if not entries:
             return results
