@@ -247,5 +247,14 @@ class SXNGPlugin(Plugin):
             rate=_fmt(rate, 4),
             to=to,
         )
-        results.add(results.types.Answer(answer=answer, url=ANSWER_URL.format(frm=frm, to=to)))
+        results.add(
+            results.types.Answer(
+                answer=answer,
+                url=ANSWER_URL.format(frm=frm, to=to),
+                # custom hero-card template (bind mounted, see docker-compose.yml);
+                # it splits the answer string on the exact " = " / " (" separators
+                # produced above, so keep the format string and template in sync
+                template="answer/currency.html",
+            )
+        )
         return results

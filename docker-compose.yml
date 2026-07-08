@@ -105,22 +105,48 @@ services:
           secret="$$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
         fi
         sed "s|__SEARXNG_SECRET__|$$secret|g" /tmp/searxng-settings.yml.template > /etc/searxng/settings.yml
+        cp /tmp/searxng-favicons.toml /etc/searxng/favicons.toml
         # searx.data's SQLite cache expires its rows after 7 days of uptime
-        # but keeps its "loaded" flag, silently breaking currency/tracker
-        # data lookups. Purge it on boot so it rebuilds fresh.
-        rm -f /tmp/sxng_cache_DATA_CACHE.db*
+        # but keeps its "loaded" flags, silently breaking currency/tracker
+        # data lookups. Clear just the flags so the data reloads (deleting
+        # the whole db would race the parallel engine inits on fresh boots).
+        python - <<'EOF' || true
+        import os, sqlite3
+        db = "/tmp/sxng_cache_DATA_CACHE.db"
+        if os.path.exists(db):
+            con = sqlite3.connect(db)
+            try:
+                con.execute("DELETE FROM properties WHERE name LIKE '%loaded%'")
+                con.commit()
+            except sqlite3.OperationalError:
+                pass
+            con.close()
+        EOF
         exec /usr/local/searxng/entrypoint.sh
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - searxng-data:/etc/searxng
       - ./config/searxng/settings.yml:/tmp/searxng-settings.yml.template:ro,z
+      - ./config/searxng/favicons.toml:/tmp/searxng-favicons.toml:ro,z
       # Custom `!gm` -> Google Maps engine, referenced as `engine: google_maps`
       # in settings.yml. Mounted into SearXNG's engine package.
       - ./config/searxng/google_maps.py:/usr/local/searxng/searx/engines/google_maps.py:ro,z
       # Custom Google-style currency instant answers ("400 usd" -> DKK),
       # registered in settings.yml as searx.plugins.currency_answer.SXNGPlugin.
       - ./config/searxng/currency_answer.py:/usr/local/searxng/searx/plugins/currency_answer.py:ro,z
+      # Custom Google-style weather card plugin + its template.
+      - ./config/searxng/weather_answer.py:/usr/local/searxng/searx/plugins/weather_answer.py:ro,z
+      - ./config/searxng/answer_cael_weather.html:/usr/local/searxng/searx/templates/simple/answer/cael_weather.html:ro,z
+      # Hero-card template for the currency answer.
+      - ./config/searxng/answer_currency.html:/usr/local/searxng/searx/templates/simple/answer/currency.html:ro,z
+      # caelestia look: patched base.html links two extra stylesheets served
+      # from the custom/ static dir (caelestia.css + generated scheme.css).
+      # NOTE: single-file bind mounts pin the inode; after editing any of
+      # these files (or anything in custom/, whiteNoise caches static file
+      # metadata at startup) run: docker compose up -d --force-recreate searxng
+      - ./config/searxng/base.html:/usr/local/searxng/searx/templates/simple/base.html:ro,z
+      - ./config/searxng/custom:/usr/local/searxng/searx/static/themes/simple/custom:ro,z
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080/
       - SEARXNG_SECRET=${SEARXNG_SECRET:-}

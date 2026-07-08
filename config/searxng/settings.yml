@@ -10,9 +10,22 @@ search:
   # switch back to "duckduckgo" if Google ever rate-limits this instance.
   autocomplete: "google"
   autocomplete_min: 2
+  # Site favicons next to results, like Google. Proxied and cached server
+  # side (/tmp/faviconcache.db in the container, 30 days).
+  favicon_resolver: "duckduckgo"
   formats:
     - html
     - json
+
+ui:
+  # Google-style centered results column instead of left-hugging.
+  center_alignment: true
+
+# The caelestia look itself lives in two bind mounts (see docker-compose.yml):
+# a patched templates/simple/base.html that links two extra stylesheets, and
+# the static custom/ dir holding caelestia.css (hand written) + scheme.css
+# (generated from the desktop colour scheme by gen-scheme-css.sh, auto-run on
+# scheme changes by the systemd user unit searxng-caelestia-theme.path).
 
 # NOTE: unlike `engines` (merged by name), a `plugins:` section REPLACES the
 # default plugin map wholesale (searx/settings_loader.py, update_settings), so
@@ -27,6 +40,11 @@ plugins:
   # the "X usd to Y" form and is silently killed by a searx.data cache
   # expiry bug after 7 days of uptime.
   searx.plugins.currency_answer.SXNGPlugin:
+    active: true
+
+  # Custom: Google-style weather card ("weather copenhagen", "vejret lyngby",
+  # bare "weather" defaults to Copenhagen). Bind mounted like currency_answer.
+  searx.plugins.weather_answer.SXNGPlugin:
     active: true
 
   # Image defaults below (restated because this map does not merge).
@@ -52,8 +70,10 @@ plugins:
     active: true
   searx.plugins.tracker_url_remover.SXNGPlugin:
     active: true
+  # Changed from image default (false): auto-load the next page on scroll,
+  # Google-continuous-results style.
   searx.plugins.infinite_scroll.SXNGPlugin:
-    active: false
+    active: true
   searx.plugins.oa_doi_rewrite.SXNGPlugin:
     active: false
   searx.plugins.tor_check.SXNGPlugin:

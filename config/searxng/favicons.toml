@@ -1,0 +1,13 @@
+# Favicon proxy/cache config (rendered to /etc/searxng/favicons.toml by the
+# entrypoint). The resolver itself is picked in settings.yml
+# (search.favicon_resolver). Defaults are fine; personal instance, so the
+# cache gets more room than the stock 50 MB / 30 days.
+
+[favicons]
+
+cfg_schema = 1
+
+[favicons.cache]
+
+HOLD_TIME = 5184000            # 60 days
+LIMIT_TOTAL_BYTES = 209715200  # 200 MB

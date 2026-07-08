@@ -1,0 +1,29 @@
+{#- Hero card for the currency_answer plugin. Splits the plugin's answer
+    string ("400.00 United States dollar = 2,618.41 Danish krone (1 USD =
+    6.5460 DKK)") on its fixed separators; keep in sync with the plugin's
+    format string. -#}
+{%- if " = " in answer.answer and " (" in answer.answer -%}
+  {%- set main_part, _sep, rate_part = answer.answer.rpartition(" (") -%}
+  {%- set from_part, _sep2, to_part = main_part.partition(" = ") -%}
+  <div class="cael-hero cael-currency">
+    <span class="cael-msr cael-hero-icon">currency_exchange</span>
+    <div class="cael-hero-body">
+      <span class="cael-hero-label">{{ from_part }} =</span>
+      <span class="cael-hero-value">{{ to_part }}</span>
+      <span class="cael-hero-sub">{{ rate_part.rstrip(")") }}</span>
+    </div>
+    {%- if answer.url -%}
+      <a href="{{ answer.url }}" class="answer-url"
+         {%- if results_on_new_tab %} target="_blank" rel="noopener noreferrer"
+         {%- else %} rel="noreferrer"
+         {%- endif -%}
+         >Google Finance</a>
+    {%- endif -%}
+  </div>
+{%- else -%}
+  {#- fallback: format drifted, render like answer/legacy.html -#}
+  <span>{{ answer.answer }}</span>
+  {%- if answer.url -%}
+    <a href="{{ answer.url }}" class="answer-url" rel="noreferrer">{{ urlparse(answer.url).hostname }}</a>
+  {%- endif -%}
+{%- endif -%}

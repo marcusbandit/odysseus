@@ -1,0 +1,60 @@
+{#- Weather card for the weather_answer plugin (WeatherAnswer result type).
+    Icons are Material Symbols Rounded ligatures (font installed on the
+    viewing machines; degrades to the ligature word elsewhere). -#}
+{%- set cur = answer.current -%}
+{%- set icon_map = {
+      "clear sky": "clear_day",
+      "fair": "partly_cloudy_day",
+      "partly cloudy": "partly_cloudy_day",
+      "cloudy": "cloud",
+      "fog": "foggy",
+      "light rain": "rainy",
+      "rain": "rainy",
+      "heavy rain": "rainy",
+      "light rain showers": "rainy",
+      "rain showers": "rainy",
+      "heavy rain showers": "rainy",
+      "light sleet": "weather_mix",
+      "sleet": "weather_mix",
+      "heavy sleet": "weather_mix",
+      "light sleet showers": "weather_mix",
+      "snow": "weather_snowy",
+      "snow showers": "weather_snowy",
+      "heavy snow showers": "weather_snowy",
+      "rain and thunder": "thunderstorm",
+      "light snow and thunder": "thunderstorm",
+      "heavy snow and thunder": "thunderstorm",
+    } -%}
+<div class="cael-hero cael-weather">
+  <div class="cael-weather-now">
+    <span class="cael-msr cael-weather-icon">{{ icon_map.get(cur.condition, "partly_cloudy_day") }}</span>
+    <span class="cael-weather-temp">{{ cur.temperature.l10n(locale=cur.location) }}</span>
+    <div class="cael-weather-head">
+      <span class="cael-weather-city">{{ cur.location.name }}</span>
+      <span class="cael-weather-cond">{{ cur.condition | capitalize }}</span>
+    </div>
+  </div>
+  <div class="cael-weather-stats">
+    <span><span class="cael-msr">thermostat</span>{{ _("Feels Like") }} {{ cur.feels_like.l10n(locale=cur.location) }}</span>
+    <span><span class="cael-msr">humidity_percentage</span>{{ _("Humidity") }} {{ cur.humidity.l10n(locale=cur.location) }}</span>
+    <span><span class="cael-msr">air</span>{{ cur.wind_from.l10n(locale=cur.location) }} {{ cur.wind_speed.l10n(locale=cur.location) }}</span>
+  </div>
+  {%- if answer.forecasts -%}
+    <div class="cael-weather-forecast">
+      {%- for f in answer.forecasts -%}
+        <div class="cael-weather-chip">
+          <span class="cael-weather-chip-time">{{ f.datetime.l10n(fmt="HH:mm", locale=cur.location) }}</span>
+          <span class="cael-msr">{{ icon_map.get(f.condition, "partly_cloudy_day") }}</span>
+          <span class="cael-weather-chip-temp">{{ f.temperature.l10n(locale=cur.location) }}</span>
+        </div>
+      {%- endfor -%}
+    </div>
+  {%- endif -%}
+  {%- if answer.url -%}
+    <a href="{{ answer.url }}" class="answer-url"
+       {%- if results_on_new_tab %} target="_blank" rel="noopener noreferrer"
+       {%- else %} rel="noreferrer"
+       {%- endif -%}
+       >{{ answer.service }}</a>
+  {%- endif -%}
+</div>

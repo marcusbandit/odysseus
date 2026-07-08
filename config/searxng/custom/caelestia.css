@@ -1,0 +1,599 @@
+/* caelestia design layer for the SearXNG simple theme.
+ *
+ * Loaded after sxng-ltr.min.css (see base.html); colour tokens come from
+ * scheme.css (generated from the live desktop scheme by gen-scheme-css.sh).
+ * Material 3 surfaces, Rubik type, pill search, hero answer cards.
+ */
+
+/* ==== 1. token bridge: map caelestia M3 tokens onto the theme vars ==== */
+:root,
+:root.theme-auto,
+:root.theme-light,
+:root.theme-dark,
+:root.theme-black {
+  --color-base-background: var(--cael-background);
+  --color-base-background-mobile: var(--cael-background);
+  --color-base-font: var(--cael-onSurface);
+  --color-url-font: var(--cael-primary);
+  --color-url-visited-font: var(--cael-tertiary);
+
+  --color-header-background: var(--cael-background);
+  --color-header-border: transparent;
+  --color-footer-background: var(--cael-background);
+  --color-footer-border: transparent;
+
+  --color-sidebar-background: var(--cael-surfaceContainerLow);
+  --color-sidebar-border: var(--cael-outlineVariant);
+  --color-sidebar-font: var(--cael-onSurface);
+
+  --color-backtotop-background: var(--cael-surfaceContainerHigh);
+  --color-backtotop-border: transparent;
+  --color-backtotop-font: var(--cael-onSurface);
+
+  --color-btn-background: var(--cael-primary);
+  --color-btn-font: var(--cael-onPrimary);
+  --color-show-btn-background: var(--cael-secondaryContainer);
+  --color-show-btn-font: var(--cael-onSecondaryContainer);
+
+  --color-search-background: var(--cael-surfaceContainer);
+  --color-search-border: var(--cael-outlineVariant);
+  --color-search-font: var(--cael-onSurface);
+  --color-search-background-hover: var(--cael-primary);
+  --color-search-shadow: 0 4px 24px color-mix(in srgb, var(--cael-shadow) 30%, transparent);
+
+  --color-error: var(--cael-error);
+  --color-error-background: color-mix(in srgb, var(--cael-error) 14%, transparent);
+  --color-warning: #f1d561;
+  --color-warning-background: color-mix(in srgb, #f1d561 14%, transparent);
+  --color-success: var(--cael-success);
+  --color-success-background: color-mix(in srgb, var(--cael-success) 14%, transparent);
+
+  --color-categories-item-selected-font: var(--cael-primary);
+  --color-categories-item-border-selected: var(--cael-primary);
+
+  --color-autocomplete-background: var(--cael-surfaceContainerHigh);
+  --color-autocomplete-border: transparent;
+  --color-autocomplete-font: var(--cael-onSurface);
+  --color-autocomplete-background-hover: var(--cael-secondaryContainer);
+
+  --color-answer-background: var(--cael-surfaceContainerLow);
+  --color-answer-font: var(--cael-onSurface);
+
+  --color-result-background: var(--cael-surfaceContainerLow);
+  --color-result-border: transparent;
+  --color-result-link-font: var(--cael-primary);
+  --color-result-link-font-highlight: var(--cael-primary);
+  --color-result-link-visited-font: var(--cael-tertiary);
+  --color-result-url-font: var(--cael-onSurfaceVariant);
+  --color-result-description-highlight-font: var(--cael-onSurface);
+  --color-result-publishdate-font: var(--cael-outline);
+  --color-result-engines-font: var(--cael-outline);
+  --color-result-search-url-border: var(--cael-outlineVariant);
+  --color-result-search-url-font: var(--cael-onSurface);
+  --color-result-vim-selected: color-mix(in srgb, var(--cael-primary) 10%, transparent);
+  --color-result-vim-arrow: var(--cael-primary);
+
+  --color-favicon-background-color: transparent;
+  --color-favicon-border-color: transparent;
+
+  --color-toolkit-badge-font: var(--cael-onSecondaryContainer);
+  --color-toolkit-badge-background: var(--cael-secondaryContainer);
+  --color-toolkit-kbd-font: var(--cael-onSurface);
+  --color-toolkit-kbd-background: var(--cael-surfaceContainerHighest);
+  --color-toolkit-dialog-border: var(--cael-outlineVariant);
+  --color-toolkit-tabs-label-border: transparent;
+  --color-toolkit-tabs-section-border: var(--cael-outlineVariant);
+  --color-toolkit-select-background: var(--cael-surfaceContainerHigh);
+  --color-toolkit-select-border: var(--cael-outlineVariant);
+  --color-toolkit-select-background-hover: var(--cael-surfaceContainerHighest);
+  --color-toolkit-input-text-font: var(--cael-onSurface);
+  --color-toolkit-checkbox-onoff-off-background: var(--cael-surfaceContainerHighest);
+  --color-toolkit-checkbox-onoff-on-background: var(--cael-primaryContainer);
+  --color-toolkit-checkbox-onoff-on-mark-background: var(--cael-primary);
+  --color-toolkit-checkbox-onoff-off-mark-background: var(--cael-outline);
+  --color-toolkit-checkbox-label-background: var(--cael-surfaceContainerHigh);
+  --color-toolkit-checkbox-label-border: transparent;
+  --color-toolkit-engine-tooltip-border: var(--cael-outlineVariant);
+  --color-toolkit-engine-tooltip-background: var(--cael-surfaceContainerHigh);
+  --color-toolkit-loader-border: color-mix(in srgb, var(--cael-primary) 40%, transparent);
+  --color-toolkit-loader-borderleft: transparent;
+
+  --color-doc-code: var(--cael-tertiary);
+  --color-doc-code-background: var(--cael-surfaceContainerHigh);
+}
+
+/* ==== 2. global ==== */
+html {
+  scrollbar-color: var(--cael-surfaceContainerHighest) transparent;
+}
+
+body {
+  font-family: "Rubik", "Noto Sans", system-ui, sans-serif;
+  background: var(--cael-background);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--cael-primary) 35%, transparent);
+}
+
+.cael-msr {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings: "FILL" 1, "wght" 400, "opsz" 40;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==== 3. search box: M3 pill ==== */
+.search_box {
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--cael-surfaceContainer);
+  border: 1px solid var(--cael-outlineVariant);
+  box-shadow: none;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search_box:focus-within {
+  border-color: color-mix(in srgb, var(--cael-primary) 55%, transparent);
+  background: var(--cael-surfaceContainerHigh);
+  box-shadow: 0 4px 24px color-mix(in srgb, var(--cael-shadow) 35%, transparent);
+}
+
+#q {
+  background: transparent;
+  border: none;
+  color: var(--cael-onSurface);
+  padding-left: 1.25rem;
+}
+
+#q::placeholder {
+  color: var(--cael-outline);
+}
+
+#send_search,
+#clear_search {
+  background: transparent;
+  border: none;
+  color: var(--cael-onSurfaceVariant);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+#send_search:hover,
+#clear_search:hover {
+  background: color-mix(in srgb, var(--cael-primary) 14%, transparent);
+  color: var(--cael-primary);
+}
+
+.autocomplete {
+  border-radius: 20px;
+  overflow: hidden;
+  border: none;
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--cael-shadow) 45%, transparent);
+  margin-top: 0.4rem;
+}
+
+.autocomplete ul li {
+  padding: 0.25rem 0.5rem;
+}
+
+/* ==== 4. category tabs: M3 pills ==== */
+#categories label,
+#categories .tab-label {
+  border: none;
+  border-radius: 999px;
+  padding: 0.3rem 0.95rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+#categories label:hover {
+  background: color-mix(in srgb, var(--cael-primary) 10%, transparent);
+  border: none;
+}
+
+#categories input[type="checkbox"]:checked + label,
+#categories label.selected {
+  background: var(--cael-secondaryContainer);
+  color: var(--cael-onSecondaryContainer);
+  border: none;
+}
+
+.search_filters select {
+  border-radius: 12px;
+  background: var(--cael-surfaceContainer);
+  border: 1px solid var(--cael-outlineVariant);
+  color: var(--cael-onSurfaceVariant);
+}
+
+/* ==== 5. answers: the hero area ==== */
+#answers {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--cael-primaryContainer) 26%, var(--cael-surfaceContainerLow)),
+    var(--cael-surfaceContainerLow) 62%
+  );
+  border: 1px solid color-mix(in srgb, var(--cael-primary) 16%, transparent);
+  border-radius: 28px;
+  padding: 1.5rem 1.75rem;
+  margin: 0 0 1.25rem;
+}
+
+#answers .answer {
+  position: relative;
+}
+
+#answers .answer + .answer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--cael-outlineVariant);
+}
+
+/* legacy one-liner answers (unit converter, hash, time, ip, calculator JS)
+   get big display type too; hero templates use their own classes below */
+#answers .answer > span {
+  font-size: 1.55rem;
+  font-weight: 500;
+  color: var(--cael-onSurface);
+}
+
+#answers .answer-url {
+  color: var(--cael-primary);
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.cael-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.15rem;
+}
+
+.cael-hero-icon {
+  font-size: 2.1rem;
+  color: var(--cael-primary);
+  background: color-mix(in srgb, var(--cael-primary) 14%, transparent);
+  border-radius: 999px;
+  padding: 0.75rem;
+  flex-shrink: 0;
+}
+
+.cael-hero-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.cael-hero-label {
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.95rem;
+}
+
+.cael-hero-value {
+  font-size: 2.6rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--cael-onSurface);
+}
+
+.cael-hero-sub {
+  color: var(--cael-outline);
+  font-size: 0.88rem;
+  margin-top: 0.25rem;
+}
+
+.cael-hero .answer-url {
+  position: absolute;
+  right: 0.1rem;
+  bottom: 0.1rem;
+  margin: 0;
+}
+
+/* ==== 5b. weather card ==== */
+.cael-weather {
+  flex-direction: column;
+  gap: 1.05rem;
+}
+
+.cael-weather-now {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.cael-weather-icon {
+  font-size: 3rem;
+  color: var(--cael-tertiary);
+  background: color-mix(in srgb, var(--cael-tertiary) 13%, transparent);
+  border-radius: 999px;
+  padding: 0.85rem;
+}
+
+.cael-weather-temp {
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.cael-weather-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cael-weather-city {
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.cael-weather-cond {
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.95rem;
+}
+
+.cael-weather-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.5rem;
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.92rem;
+}
+
+.cael-weather-stats .cael-msr {
+  color: var(--cael-primary);
+  font-size: 1.1rem;
+  margin-right: 0.35rem;
+  vertical-align: -2px;
+}
+
+.cael-weather-forecast {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+  scrollbar-width: thin;
+}
+
+.cael-weather-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  background: color-mix(in srgb, var(--cael-surfaceContainerHigh) 80%, transparent);
+  border-radius: 18px;
+  padding: 0.6rem 0.85rem;
+  min-width: 4.1rem;
+}
+
+.cael-weather-chip .cael-msr {
+  color: var(--cael-tertiary);
+  font-size: 1.35rem;
+}
+
+.cael-weather-chip-time {
+  font-size: 0.78rem;
+  color: var(--cael-outline);
+}
+
+.cael-weather-chip-temp {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+/* weather card is tall; anchor its service link top-right so it never
+   overlaps the forecast chips */
+.cael-weather .answer-url {
+  top: 0.1rem;
+  bottom: auto;
+}
+
+/* ==== 6. results: M3 cards ==== */
+#urls article.result {
+  background: var(--cael-surfaceContainerLow);
+  border: none;
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+  margin: 0 0 0.8rem;
+  transition: background 0.16s ease;
+}
+
+#urls article.result:hover {
+  background: var(--cael-surfaceContainerHigh);
+}
+
+article.result h3 {
+  margin: 0.15rem 0 0.3rem;
+}
+
+article.result h3 a {
+  color: var(--cael-primary);
+}
+
+article.result h3 a:visited {
+  color: var(--cael-tertiary);
+}
+
+article.result .content {
+  color: var(--cael-onSurfaceVariant);
+}
+
+article.result .url_wrapper {
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.85rem;
+}
+
+article.result .favicon img {
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+}
+
+article.result .engines {
+  opacity: 0.75;
+  font-size: 0.78rem;
+}
+
+article.result .engines span {
+  color: var(--cael-outline);
+}
+
+/* ==== 7. sidebar / infobox ==== */
+#sidebar .infobox {
+  background: var(--cael-surfaceContainerLow);
+  border: 1px solid var(--cael-outlineVariant);
+  border-radius: 24px;
+  padding: 1.25rem 1.4rem;
+}
+
+#sidebar .infobox img {
+  border-radius: 16px;
+  max-width: 100%;
+}
+
+#sidebar .infobox h2 {
+  font-size: 1.25rem;
+  font-weight: 550;
+}
+
+#sidebar .infobox .attributes dt {
+  color: var(--cael-onSurfaceVariant);
+}
+
+#sidebar .sidebar-collapsible > summary.title,
+#sidebar #suggestions details > summary {
+  color: var(--cael-outline);
+}
+
+#suggestions .suggestion {
+  border-radius: 999px;
+}
+
+/* ==== 8. pagination / backtotop / footer ==== */
+#pagination button,
+#pagination input[type="submit"] {
+  border-radius: 999px;
+  border: 1px solid var(--cael-outlineVariant);
+  background: var(--cael-surfaceContainer);
+  color: var(--cael-onSurface);
+  transition: background 0.15s ease;
+}
+
+#pagination button:hover,
+#pagination input[type="submit"]:hover {
+  background: var(--cael-secondaryContainer);
+  color: var(--cael-onSecondaryContainer);
+}
+
+#backToTop {
+  border-radius: 16px;
+}
+
+footer {
+  color: var(--cael-outline);
+  font-size: 0.78rem;
+}
+
+footer a {
+  color: var(--cael-onSurfaceVariant);
+}
+
+/* ==== 9. logo + index (home) page: Google-calm ==== */
+/* the stock wordmark/magnifier SVG carries its own blues; swap it for a
+   Rubik text logo tinted by the live scheme */
+#search_logo svg {
+  display: none;
+}
+
+#search_logo {
+  text-decoration: none;
+}
+
+#search_logo::after {
+  content: "searxng";
+  font-family: "Rubik", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  background: linear-gradient(100deg, var(--cael-primary), var(--cael-tertiary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+#main_index #search_logo::after {
+  font-size: 3.4rem;
+  line-height: 1.15;
+}
+
+#main_results #search_logo::after {
+  font-size: 1.3rem;
+}
+
+/* home wordmark: stock paints img/searxng.png over a hidden h1; show the
+   text instead, tinted by the live scheme */
+.index .title {
+  background: none;
+  min-height: auto;
+  margin: 3rem auto 2.25rem;
+}
+
+.index .title h1 {
+  visibility: visible;
+  font-family: "Rubik", sans-serif;
+  font-size: 3.6rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  margin: 0;
+  background: linear-gradient(100deg, var(--cael-primary), var(--cael-tertiary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+#main_index .search_box {
+  box-shadow: 0 10px 42px color-mix(in srgb, var(--cael-shadow) 42%, transparent);
+  border-radius: 999px;
+}
+
+#main_index #q {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+/* ==== 10. motion (subtle, exponential-feel easing) ==== */
+@media (prefers-reduced-motion: no-preference) {
+  #answers {
+    animation: cael-pop 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  #urls article.result {
+    animation: cael-fade 0.3s ease both;
+  }
+
+  #urls article.result:nth-child(1) { animation-delay: 0.02s; }
+  #urls article.result:nth-child(2) { animation-delay: 0.05s; }
+  #urls article.result:nth-child(3) { animation-delay: 0.08s; }
+  #urls article.result:nth-child(4) { animation-delay: 0.11s; }
+  #urls article.result:nth-child(5) { animation-delay: 0.14s; }
+
+  @keyframes cael-fade {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @keyframes cael-pop {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.985);
+    }
+  }
+}
