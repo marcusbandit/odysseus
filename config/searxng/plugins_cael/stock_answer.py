@@ -3,10 +3,15 @@
 
 Whole-query triggers like ``aapl stock``, ``stock nvda``, ``aktie tsla`` or
 ``$NVDA`` render a quote hero card with price, day change and a one-month
-sparkline, like Google's finance widget. Quotes come from Yahoo's public v8
-chart endpoint (range=1mo, interval=1d) and are cached in-process for five
-minutes per ticker; any API failure or unknown ticker silently yields no
-answer, never a broken search.
+sparkline, like Google's finance widget. Company names work too: keyword
+forms (``taiwan semiconductor stock``, ``aktie novo nordisk``) resolve the
+name through Yahoo's search endpoint, and bare queries containing an
+ALL-CAPS token (``TSMC taiwan semiconductors``) resolve when the match is
+unambiguous (symbol relates to the caps token; with extra words, at least
+one must overlap the matched company name, so ``DTU exam dates`` stays
+clean). Quotes come from Yahoo's public v8 chart endpoint (range=1mo,
+interval=1d) and are cached in-process for five minutes per ticker; any API
+failure or unknown ticker silently yields no answer, never a broken search.
 
 Rendered by the custom template ``answer/cael/stock.html`` (bind mounted,
 like this file; see docker-compose.yml).
@@ -38,14 +43,21 @@ TEMPLATE = "answer/cael/stock.html"
 # Yahoo answers plain JSON on the chart endpoint, but only with a
 # browser-like User-Agent; the default httpx/curl UAs get HTTP 429.
 API_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1mo&interval=1d"
+SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search?q={q}&quotesCount=5&newsCount=0"
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64)"
 ANSWER_URL = "https://finance.yahoo.com/quote/{symbol}"
 CACHE_TTL = 300  # seconds, per uppercased ticker
+RESOLVE_TTL = 3600  # seconds, per normalized company-name query
+
+# quoteTypes the name resolver accepts from Yahoo search
+RESOLVE_TYPES = frozenset({"EQUITY", "ETF", "INDEX", "CRYPTOCURRENCY"})
 
 # keyword slots around the ticker: "stock aapl" / "stocks aapl" / "aktie tsla"
 LEADING_WORDS = frozenset({"stock", "stocks", "aktie"})
 # "aapl stock" / "tsla aktie"
 TRAILING_WORDS = frozenset({"stock", "aktie"})
+# multiword trailing phrases: "taiwan semiconductor stock price"
+TRAILING_PHRASES = ("stock price", "share price", "stock chart", "aktiekurs")
 
 # words in the ticker slot that mean the query is not about a quote
 # ("stock photos", "stock market", ...): silently no answer
@@ -90,26 +102,173 @@ class StockAnswer(BaseAnswer, kw_only=True):
         return hash(self.answer)
 
 
-def _extract_symbol(query: str) -> str | None:
-    """Return the uppercased ticker if the whole query is a stock trigger."""
-    words = query.split()
-    candidate = None
-    if len(words) == 1:
-        m = DOLLAR_RE.match(words[0])
-        if m:
-            candidate = m.group(1)
-    elif len(words) == 2:
-        if words[0].lower() in LEADING_WORDS:
-            candidate = words[1]
-        elif words[1].lower() in TRAILING_WORDS:
-            candidate = words[0]
-    if candidate is None:
-        return None
+def _clean_ticker(candidate: str) -> str | None:
     if candidate.lower() in STOPLIST:
         return None
     if not TICKER_RE.match(candidate) or not HAS_LETTER_RE.search(candidate):
         return None
     return candidate.upper()
+
+
+CAPS_TOKEN_RE = re.compile(r"^[A-Z]{2,6}$")
+PURE_NUMBER_RE = re.compile(r"^\d{4,}$")
+
+
+def _extract_trigger(query: str) -> tuple[str, str] | None:
+    """Classify the query as a stock trigger.
+
+    Returns ("ticker", SYMBOL), ("name", phrase) for explicit keyword forms,
+    ("bare", phrase) for keywordless company-name forms, or None.
+    """
+    words = query.split()
+    if not words or len(words) > 7:
+        return None
+
+    # "$NVDA"
+    if len(words) == 1:
+        m = DOLLAR_RE.match(words[0])
+        if m:
+            sym = _clean_ticker(m.group(1))
+            return ("ticker", sym) if sym else None
+
+    # explicit keyword forms
+    rest: list[str] | None = None
+    if words[0].lower() in LEADING_WORDS and len(words) >= 2:
+        rest = words[1:]
+    elif words[-1].lower() in TRAILING_WORDS and len(words) >= 2:
+        rest = words[:-1]
+    elif len(words) >= 3 and " ".join(w.lower() for w in words[-2:]) in TRAILING_PHRASES:
+        rest = words[:-2]
+    if rest is not None:
+        if any(w.lower() in STOPLIST for w in rest):
+            return None
+        if any(PURE_NUMBER_RE.match(w) for w in rest):
+            return None
+        if len(rest) == 1:
+            sym = _clean_ticker(rest[0])
+            if sym:
+                return ("ticker", sym)
+        return ("name", " ".join(rest)) if 1 <= len(rest) <= 6 else None
+
+    # bare form: needs an ALL-CAPS ticker-looking token ("TSMC taiwan semi");
+    # a lone token needs 3+ letters so "IT" (the movie) is not Gartner
+    if len(words) <= 5:
+        caps = [w for w in words if CAPS_TOKEN_RE.match(w)]
+        if caps and not any(w.lower() in STOPLIST for w in words):
+            if len(words) == 1 and len(words[0]) < 3:
+                return None
+            if not any(PURE_NUMBER_RE.match(w) for w in words):
+                return ("bare", query.strip())
+    return None
+
+
+def _resolve_cache_key(phrase: str) -> str:
+    return re.sub(r"\s+", " ", phrase.strip().lower())
+
+
+_resolve_lock = threading.Lock()
+_resolve_cache: dict[str, tuple[tuple[str, str] | None, float]] = {}
+
+
+def _resolve_name(phrase: str, hint: str | None = None) -> tuple[str, str] | None:
+    """Resolve a company name to (symbol, longname) via Yahoo search.
+
+    ``hint`` is an ALL-CAPS token from the query: candidates whose symbol
+    base matches it outrank everything (Yahoo search for "TSMC" only lists
+    foreign venues of the right company plus lookalike tickers, so venue
+    shape alone picks the wrong company). Venue shape breaks ties: primary
+    listings tend to have no digits (TSMC34) and no suffix (.SA).
+    """
+    key = (hint or "") + "|" + _resolve_cache_key(phrase)
+    now = time.monotonic()
+    with _resolve_lock:
+        hit = _resolve_cache.get(key)
+        if hit and now - hit[1] < RESOLVE_TTL:
+            return hit[0]
+    resolved: tuple[str, str] | None = None
+    try:
+        resp = http_get(
+            SEARCH_URL.format(q=url_quote(phrase, safe="")),
+            headers={"User-Agent": USER_AGENT},
+            timeout=3.0,
+        )
+        if resp.status_code == 200:
+            candidates: list[tuple[int, int, int, str, str]] = []
+            for index, quote in enumerate(resp.json().get("quotes", [])):
+                if quote.get("quoteType") not in RESOLVE_TYPES:
+                    continue
+                symbol = quote.get("symbol")
+                if not symbol:
+                    continue
+                name = quote.get("longname") or quote.get("shortname") or symbol
+                base = symbol.split(".")[0].upper()
+                sym_score = 0
+                if hint:
+                    if base == hint:
+                        sym_score = 8
+                    elif base.startswith(hint) or hint.startswith(base):
+                        sym_score = 4 - min(3, abs(len(base) - len(hint)))
+                venue = 0
+                if not re.search(r"\d", base):
+                    venue += 3
+                if "." not in symbol:
+                    venue += 1
+                candidates.append((-sym_score, -venue, index, symbol.upper(), name))
+            if candidates:
+                candidates.sort()
+                resolved = (candidates[0][3], candidates[0][4])
+    except Exception:  # pylint: disable=broad-except
+        # unresolved is cached too, so junk queries do not re-hit the API
+        resolved = None
+    with _resolve_lock:
+        _resolve_cache[key] = (resolved, now)
+    return resolved
+
+
+def _canonicalize(symbol: str, longname: str) -> tuple[str, str]:
+    """Swap a secondary-venue match (TSMC.BA, BRL/ARS listings) for the
+    primary one by re-searching the company's own long name; keep the
+    original when the round trip fails or lands on a different company."""
+    primary = _resolve_name(longname)
+    if primary is None or primary[0] == symbol:
+        return symbol, longname
+    orig_words = {w.lower().strip(".,()") for w in longname.split() if len(w) >= 4}
+    new_words = {w.lower().strip(".,()") for w in primary[1].split() if len(w) >= 4}
+    if orig_words & new_words:
+        return primary
+    return symbol, longname
+
+
+def _bare_match_ok(query: str, symbol: str, names: list[str]) -> bool:
+    """Acceptance gate for keywordless queries.
+
+    The caps token must relate to the matched symbol (TSMC vs TSM works via
+    prefix), and when extra words are present at least one must overlap the
+    matched company name (prefix match, 4+ chars), so unrelated queries that
+    happen to contain an acronym stay clean.
+    """
+    words = query.split()
+    caps = [w for w in words if CAPS_TOKEN_RE.match(w)]
+    base = symbol.split(".")[0].replace("-", "").upper()
+    symbol_ok = False
+    for token in caps:
+        t = token.replace("-", "").upper()
+        if t == base or t.startswith(base) or base.startswith(t):
+            symbol_ok = True
+            break
+    if not symbol_ok:
+        return False
+    others = [w.lower() for w in words if not CAPS_TOKEN_RE.match(w)]
+    if not others:
+        return True
+    name_words = [w.lower().strip(".,()") for n in names for w in n.split()]
+    for token in others:
+        if len(token) < 4:
+            continue
+        for nw in name_words:
+            if nw.startswith(token[:4]) or token.startswith(nw[:4]):
+                return True
+    return False
 
 
 def _fetch_quote(symbol: str) -> dict | None:
@@ -211,9 +370,10 @@ class SXNGPlugin(Plugin):
             name="Stock quotes",
             description=(
                 "Shows a stock quote card with a one-month sparkline for "
-                "queries like 'aapl stock', 'stock nvda' or '$NVDA'."
+                "queries like 'aapl stock', 'taiwan semiconductor stock', "
+                "'TSMC' or '$NVDA'."
             ),
-            examples=["aapl stock", "stock nvda", "$NVDA"],
+            examples=["aapl stock", "taiwan semiconductor stock", "$NVDA"],
             preference_section="query",
         )
 
@@ -222,9 +382,30 @@ class SXNGPlugin(Plugin):
         if search.search_query.pageno > 1:
             return results
 
-        symbol = _extract_symbol(search.search_query.query)
-        if symbol is None:
+        trigger = _extract_trigger(search.search_query.query)
+        if trigger is None:
             return results
+        kind, payload = trigger
+
+        if kind == "ticker":
+            symbol = payload
+        else:
+            if kind == "bare":
+                # search only the caps tokens (robust against typos in the
+                # surrounding words: "TSMC Tiwan semi conductord"), score by
+                # the first caps token, then canonicalize to the primary
+                # listing via the company's long name
+                caps = [w for w in payload.split() if CAPS_TOKEN_RE.match(w)]
+                resolved = _resolve_name(" ".join(caps), hint=caps[0])
+            else:
+                resolved = _resolve_name(payload)
+            if resolved is None:
+                return results
+            symbol, longname = resolved
+            if kind == "bare":
+                if not _bare_match_ok(payload, symbol, [longname]):
+                    return results
+                symbol, longname = _canonicalize(symbol, longname)
 
         data = _fetch_quote(symbol)
         if data is None:
