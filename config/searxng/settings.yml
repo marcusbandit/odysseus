@@ -20,6 +20,8 @@ search:
 ui:
   # Google-style centered results column instead of left-hugging.
   center_alignment: true
+  # j/k result navigation and friends (overridable per user in preferences).
+  hotkeys: vim
 
 # The caelestia look itself lives in two bind mounts (see docker-compose.yml):
 # a patched templates/simple/base.html that links two extra stylesheets, and
@@ -39,19 +41,37 @@ plugins:
   # the built-in `currency` engine (disabled below), which only understood
   # the "X usd to Y" form and is silently killed by a searx.data cache
   # expiry bug after 7 days of uptime.
-  searx.plugins.currency_answer.SXNGPlugin:
+  searx.plugins.cael.currency_answer.SXNGPlugin:
     active: true
 
   # Custom: Google-style weather card ("weather copenhagen", "vejret lyngby",
   # bare "weather" defaults to Copenhagen). Bind mounted like currency_answer.
-  searx.plugins.weather_answer.SXNGPlugin:
+  searx.plugins.cael.weather_answer.SXNGPlugin:
+    active: true
+
+  # Custom: server-side calculator ("2+2*3", "sqrt(2)*100", "15% of 340",
+  # "0xff in decimal"). Replaces the stock client-JS calculator (disabled
+  # below) so results also appear in format=json.
+  searx.plugins.cael.calc_answer.SXNGPlugin:
+    active: true
+
+  # Custom: dictionary card ("define serendipity", "meaning of ephemeral").
+  searx.plugins.cael.define_answer.SXNGPlugin:
+    active: true
+
+  # Custom: color swatch card ("#c9bfff", "rgb(201, 191, 255)", "farve f9b1dc").
+  searx.plugins.cael.color_answer.SXNGPlugin:
+    active: true
+
+  # Custom: stock quote card with sparkline ("aapl stock", "$NVDA").
+  searx.plugins.cael.stock_answer.SXNGPlugin:
     active: true
 
   # Image defaults below (restated because this map does not merge).
-  # calculator solves "2+2*3" style queries (client-side JS in this version,
-  # so it works in the browser UI but never appears in format=json output).
-  searx.plugins.calculator.SXNGPlugin:
-    active: true
+  # The stock searx.plugins.calculator.SXNGPlugin is deliberately OMITTED
+  # (not just inactive): it is client-JS only in this version and omission
+  # removes it from preferences entirely, so it can never be cookie
+  # re-enabled to double up with cael.calc_answer above.
   # "md5 foo", "sha256 foo", ...
   searx.plugins.hash_plugin.SXNGPlugin:
     active: true
@@ -113,4 +133,12 @@ engines:
 
   # Weather via Open-Meteo: `!om copenhagen` or the weather category.
   - name: openmeteo
+    disabled: false
+
+  # Dev-tab engines, off by default upstream: `!npm`, `!crates` and on the
+  # it category. (No aur engine exists in 2026.5.31; archwiki/pypi/docker
+  # hub/github are already enabled upstream.)
+  - name: npm
+    disabled: false
+  - name: crates.io
     disabled: false

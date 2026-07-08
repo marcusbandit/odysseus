@@ -1,0 +1,29 @@
+{#- Stock quote hero card for the stock_answer plugin (StockAnswer type).
+    Everything is precomputed in the plugin: price/change are formatted
+    strings and spark_path is a ready SVG path in a 120x36 viewBox. -#}
+{%- set trend = "up" if answer.up else "down" -%}
+<div class="cael-hero cael-stock">
+  <span class="cael-msr cael-hero-icon">monitoring</span>
+  <div class="cael-hero-body">
+    <span class="cael-hero-label">{{ answer.symbol }}, {{ answer.name }}</span>
+    <span class="cael-hero-value">{{ answer.price }} {{ answer.currency }}</span>
+    <div class="cael-stock-row">
+      <span class="cael-stock-change {{ trend }}">
+        <span class="cael-msr" aria-hidden="true">{{ "trending_up" if answer.up else "trending_down" }}</span>
+        {{ answer.change }} ({{ answer.change_pct }})
+      </span>
+      <svg class="cael-stock-spark {{ trend }}" viewBox="0 0 120 36" preserveAspectRatio="none" aria-hidden="true">
+        <path d="{{ answer.spark_path }}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="{{ answer.spark_end_x }}" cy="{{ answer.spark_end_y }}" r="2.5" fill="currentColor"/>
+      </svg>
+      <span class="cael-stock-range">{{ _("1 mo") }}</span>
+    </div>
+  </div>
+  {%- if answer.url -%}
+    <a href="{{ answer.url }}" class="answer-url"
+       {%- if results_on_new_tab %} target="_blank" rel="noopener noreferrer"
+       {%- else %} rel="noreferrer"
+       {%- endif -%}
+       >Yahoo Finance</a>
+  {%- endif -%}
+</div>

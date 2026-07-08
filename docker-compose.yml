@@ -132,20 +132,19 @@ services:
       # Custom `!gm` -> Google Maps engine, referenced as `engine: google_maps`
       # in settings.yml. Mounted into SearXNG's engine package.
       - ./config/searxng/google_maps.py:/usr/local/searxng/searx/engines/google_maps.py:ro,z
-      # Custom Google-style currency instant answers ("400 usd" -> DKK),
-      # registered in settings.yml as searx.plugins.currency_answer.SXNGPlugin.
-      - ./config/searxng/currency_answer.py:/usr/local/searxng/searx/plugins/currency_answer.py:ro,z
-      # Custom Google-style weather card plugin + its template.
-      - ./config/searxng/weather_answer.py:/usr/local/searxng/searx/plugins/weather_answer.py:ro,z
-      - ./config/searxng/answer_cael_weather.html:/usr/local/searxng/searx/templates/simple/answer/cael_weather.html:ro,z
-      # Hero-card template for the currency answer.
-      - ./config/searxng/answer_currency.html:/usr/local/searxng/searx/templates/simple/answer/currency.html:ro,z
+      # caelestia instant-answer plugin pack (currency, weather, calc, define,
+      # color, stock), importable as searx.plugins.cael.<module>, plus their
+      # hero-card templates (referenced as answer/cael/<name>.html).
+      - ./config/searxng/plugins_cael:/usr/local/searxng/searx/plugins/cael:ro,z
+      - ./config/searxng/templates_answer:/usr/local/searxng/searx/templates/simple/answer/cael:ro,z
       # caelestia look: patched base.html links two extra stylesheets served
       # from the custom/ static dir (caelestia.css + generated scheme.css).
       # NOTE: single-file bind mounts pin the inode; after editing any of
       # these files (or anything in custom/, whiteNoise caches static file
       # metadata at startup) run: docker compose up -d --force-recreate searxng
       - ./config/searxng/base.html:/usr/local/searxng/searx/templates/simple/base.html:ro,z
+      # caelestia start page (clock, quick links, weather chip via custom/home.js).
+      - ./config/searxng/index.html:/usr/local/searxng/searx/templates/simple/index.html:ro,z
       - ./config/searxng/custom:/usr/local/searxng/searx/static/themes/simple/custom:ro,z
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080/

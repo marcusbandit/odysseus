@@ -1,0 +1,43 @@
+{#- Dictionary card for the define_answer plugin (DefineAnswer result type).
+    Everything is precomputed by the plugin: word, phonetic (may be empty)
+    and up to 3 meanings, each with part of speech, up to 3 definitions,
+    one optional example and up to 6 synonym chips. -#}
+<div class="cael-hero cael-define">
+  <span class="cael-msr cael-hero-icon">dictionary</span>
+  <div class="cael-hero-body cael-define-body">
+    <div class="cael-define-head">
+      <span class="cael-define-word">{{ answer.word }}</span>
+      {%- if answer.phonetic %}
+        <span class="cael-define-phonetic">{{ answer.phonetic }}</span>
+      {%- endif %}
+    </div>
+    {%- for meaning in answer.meanings %}
+      <div class="cael-define-meaning">
+        <span class="cael-define-pos">{{ meaning.part_of_speech }}</span>
+        <ol class="cael-define-defs">
+          {%- for definition in meaning.definitions %}
+            <li>{{ definition }}</li>
+          {%- endfor %}
+        </ol>
+        {%- if meaning.example %}
+          <p class="cael-define-example">&ldquo;{{ meaning.example }}&rdquo;</p>
+        {%- endif %}
+        {%- if meaning.synonyms %}
+          <div class="cael-define-syns">
+            <span class="cael-define-syns-label">{{ _("Synonyms") }}</span>
+            {%- for synonym in meaning.synonyms %}
+              <span class="cael-define-syn">{{ synonym }}</span>
+            {%- endfor %}
+          </div>
+        {%- endif %}
+      </div>
+    {%- endfor %}
+  </div>
+  {%- if answer.url -%}
+    <a href="{{ answer.url }}" class="answer-url"
+       {%- if results_on_new_tab %} target="_blank" rel="noopener noreferrer"
+       {%- else %} rel="noreferrer"
+       {%- endif -%}
+       >{{ urlparse(answer.url).hostname }}</a>
+  {%- endif %}
+</div>

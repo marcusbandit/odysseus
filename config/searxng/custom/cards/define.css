@@ -1,0 +1,93 @@
+/* dictionary card (define_answer plugin, answer/cael/define.html)
+ *
+ * Loaded after caelestia.css; builds on the .cael-hero layout (icon pill
+ * left, body column right). Every rule is scoped to .cael-define.
+ */
+
+.cael-define .cael-define-body {
+  gap: 0;
+  flex: 1;
+}
+
+.cael-define .cael-define-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.cael-define .cael-define-word {
+  font-size: 2.2rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--cael-onSurface);
+}
+
+.cael-define .cael-define-phonetic {
+  color: var(--cael-onSurfaceVariant);
+  font-size: 1.02rem;
+}
+
+.cael-define .cael-define-meaning {
+  margin-top: 0.75rem;
+}
+
+.cael-define .cael-define-pos {
+  font-style: italic;
+  color: var(--cael-tertiary);
+  font-size: 0.95rem;
+}
+
+.cael-define .cael-define-defs {
+  margin: 0.25rem 0 0;
+  padding-left: 1.4rem;
+  color: var(--cael-onSurface);
+  font-size: 1rem;
+}
+
+.cael-define .cael-define-defs li {
+  margin: 0.18rem 0;
+  padding-left: 0.2rem;
+}
+
+.cael-define .cael-define-defs li::marker {
+  color: var(--cael-outline);
+  font-size: 0.9rem;
+}
+
+.cael-define .cael-define-example {
+  margin: 0.3rem 0 0 1.4rem;
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.92rem;
+  font-style: italic;
+}
+
+.cael-define .cael-define-syns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0 1.4rem;
+}
+
+.cael-define .cael-define-syns-label {
+  color: var(--cael-outline);
+  font-size: 0.8rem;
+  margin-right: 0.15rem;
+}
+
+.cael-define .cael-define-syn {
+  background: var(--cael-secondaryContainer);
+  color: var(--cael-onSecondaryContainer);
+  border-radius: 999px;
+  padding: 0.14rem 0.62rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* the card can get tall; anchor the source link top-right so it never
+   overlaps the last meaning block (same trick as the weather card) */
+.cael-define .answer-url {
+  top: 0.1rem;
+  bottom: auto;
+}

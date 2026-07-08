@@ -1,0 +1,35 @@
+/* calc_answer card (answer/cael/calc.html). Loaded after the main theme;
+   every rule is scoped to .cael-calc. Colors come from the caelestia
+   Material 3 tokens only. */
+
+.cael-calc .cael-hero-icon {
+  color: var(--cael-tertiary);
+  background: color-mix(in srgb, var(--cael-tertiary) 13%, transparent);
+}
+
+/* results can be long (binary literals, scientific notation): keep digits
+   tabular and let them wrap inside the card instead of overflowing */
+.cael-calc .cael-hero-label,
+.cael-calc .cael-hero-value {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.cael-calc-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.cael-calc-chip {
+  background: color-mix(in srgb, var(--cael-surfaceContainerHigh) 80%, transparent);
+  border: 1px solid var(--cael-outlineVariant);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--cael-onSurfaceVariant);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}

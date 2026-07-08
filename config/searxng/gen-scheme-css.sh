@@ -41,4 +41,22 @@ with open(sys.argv[2], "w", encoding="utf-8") as f:
     f.write("\n".join(lines) + "\n")
 
 print(f"wrote {sys.argv[2]} ({len(colours)} tokens, mode={mode})")
+
+# Scheme-tinted favicon (referenced from base.html). Hex values are always
+# 6 chars, so the file size is stable across regenerations, which matters
+# because WhiteNoise caches static file metadata at container startup.
+import os
+bg = colours.get("primary", "c9bfff")
+fg = colours.get("onPrimary", "31285f")
+favicon = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    f'<rect width="64" height="64" rx="16" fill="#{bg}"/>'
+    f'<circle cx="29" cy="29" r="12" fill="none" stroke="#{fg}" stroke-width="6"/>'
+    f'<line x1="38.5" y1="38.5" x2="48" y2="48" stroke="#{fg}" stroke-width="6" stroke-linecap="round"/>'
+    "</svg>\n"
+)
+fav_path = os.path.join(os.path.dirname(sys.argv[2]), "favicon.svg")
+with open(fav_path, "w", encoding="utf-8") as f:
+    f.write(favicon)
+print(f"wrote {fav_path}")
 PY

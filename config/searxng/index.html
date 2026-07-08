@@ -1,0 +1,38 @@
+{% extends "simple/base.html" %}
+{% from 'simple/icons.html' import icon_big %}
+{#- caelestia start page: hero clock, wordmark, search, quick links, weather.
+    Styled by static/custom/home.css; behaviour in static/custom/home.js.
+    Quick links: one tuple per line, (label, url, material symbol name). -#}
+{%- set quick_links = [
+  ("odysseus", "http://odysseus.lan", "smart_toy"),
+  ("ntfy", "http://ntfy.lan", "notifications"),
+  ("GitHub", "https://github.com", "code"),
+  ("YouTube", "https://youtube.com", "play_circle"),
+  ("DTU Learn", "https://learn.inside.dtu.dk", "school"),
+  ("Gmail", "https://mail.google.com", "mail"),
+  ("Reddit", "https://reddit.com", "forum"),
+  ("Arch Wiki", "https://wiki.archlinux.org", "menu_book"),
+] -%}
+{% block content %}
+<div class="index">
+    <div class="title"><h1 class="cael-home-wordmark">SearXNG</h1></div>
+    <div id="cael-home-clockwrap" class="cael-home-clockwrap">
+      <div id="cael-home-clock" class="cael-home-clock"></div>
+      <div id="cael-home-date" class="cael-home-date"></div>
+    </div>
+    {% include 'simple/simple_search.html' %}
+    <nav class="cael-home-links" aria-label="Quick links">
+      {%- for label, href, glyph in quick_links %}
+      <a class="cael-home-link" href="{{ href }}">
+        <span class="cael-msr" aria-hidden="true">{{ glyph }}</span>
+        <span class="cael-home-link-label">{{ label }}</span>
+      </a>
+      {%- endfor %}
+    </nav>
+    <div id="cael-home-weather" class="cael-home-weather" hidden>
+      <span id="cael-home-weather-icon" class="cael-msr" aria-hidden="true"></span>
+      <span id="cael-home-weather-temp"></span>
+    </div>
+    <script src="{{ url_for('static', filename='custom/home.js') }}" defer></script>
+</div>
+{% endblock %}

@@ -8,7 +8,7 @@ helpers; conditions and the forecast API are shared with the built-in
 ``open_meteo`` engine (which stays available on the weather tab / ``!om``,
 this plugin brings the card to the general tab where people actually search).
 
-Rendered by the custom template ``answer/cael_weather.html`` (bind mounted,
+Rendered by the custom template ``answer/cael/weather.html`` (bind mounted,
 like this file; see docker-compose.yml).
 """
 
@@ -33,7 +33,7 @@ if typing.TYPE_CHECKING:
     from searx.plugins import PluginCfg
 
 DEFAULT_LOCATION = "Copenhagen"
-TEMPLATE = "answer/cael_weather.html"
+TEMPLATE = "answer/cael/weather.html"
 FORECAST_WINDOW_H = 24  # show chips for the next N hours
 FORECAST_STEP_H = 3  # one chip every N hours
 CACHE_TTL = 600  # seconds

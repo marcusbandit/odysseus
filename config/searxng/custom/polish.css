@@ -1,0 +1,401 @@
+/* caelestia polish layer for the SearXNG simple theme.
+ *
+ * Loaded after caelestia.css (see base.html). Fixes the remaining stock
+ * gaps: preferences page, images grid, video thumbnails, sidebar
+ * collapsibles, numbered pagination, the no-results dialog and /stats.
+ * Colours come exclusively from the --cael-* tokens in scheme.css.
+ */
+
+/* ==== 1. token bridge: stock vars caelestia.css does not cover ==== */
+:root,
+:root.theme-auto,
+:root.theme-light,
+:root.theme-dark,
+:root.theme-black {
+  /* bar charts (/stats page + "messages from the search engines") */
+  --color-bar-chart-primary: var(--cael-primary);
+  --color-bar-chart-secondary: var(--cael-tertiary);
+
+  /* media badges (image resolution, video duration) */
+  --color-image-resolution-background: color-mix(in srgb, var(--cael-scrim) 62%, transparent);
+  --color-image-resolution-font: var(--cael-onSurface);
+
+  /* preferences tables */
+  --color-settings-table-group-background: var(--cael-surfaceContainerHigh);
+  --color-settings-tr-hover: var(--cael-surfaceContainerHigh);
+  --color-settings-engine-description-font: var(--cael-onSurfaceVariant);
+
+  /* on/off toggle glyphs + plain checkboxes */
+  --color-toolkit-checkbox-onoff-on-mark-color: var(--cael-onPrimary);
+  --color-toolkit-checkbox-onoff-off-mark-color: var(--cael-inverseOnSurface);
+  --color-toolkit-checkbox-input-border: var(--cael-primary);
+
+  /* modal dialogs */
+  --color-toolkit-dialog-background: var(--cael-surfaceContainerHigh);
+
+  /* code blocks: line numbers */
+  --color-line-number: var(--cael-outline);
+
+  /* image detail view (lightbox) */
+  --color-result-detail-background: var(--cael-surfaceContainerLowest);
+  --color-result-detail-font: var(--cael-onSurface);
+  --color-result-detail-label-font: var(--cael-onSurfaceVariant);
+  --color-result-detail-hr: var(--cael-outlineVariant);
+  --color-result-detail-link: var(--cael-primary);
+
+  /* image tile text + thumbnail backdrop; selected tile bg is
+     --color-result-vim-arrow (bridged to primary by caelestia.css) */
+  --color-result-image-span-font: var(--cael-onSurfaceVariant);
+  --color-result-image-span-font-selected: var(--cael-onPrimary);
+  --color-result-image-background: var(--cael-surfaceContainerHigh);
+}
+
+/* ==== 2. header wordmark on doc-style pages (/preferences, /stats, ...) ====
+   swap the stock blue raster logo for the same Rubik gradient wordmark the
+   results/index pages use */
+.page_with_header img.logo {
+  display: none;
+}
+
+.page_with_header a:has(> img.logo) {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.page_with_header a:has(> img.logo)::after {
+  content: "searxng";
+  font-family: "Rubik", sans-serif;
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 40px;
+  background: linear-gradient(100deg, var(--cael-primary), var(--cael-tertiary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ==== 3. preferences: tabs ==== */
+#main_preferences .tabs > label {
+  border: none;
+  border-radius: 999px;
+  padding: 0.55em 1.1em;
+  margin: 0 0.25em 0.4em;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--cael-onSurfaceVariant);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+#main_preferences .tabs > label:hover {
+  border: none;
+  background: color-mix(in srgb, var(--cael-primary) 10%, transparent);
+}
+
+/* active tab (radio hack + JS .active both covered) */
+#main_preferences .tabs > input:checked + label,
+#main_preferences .tabs > label.active {
+  border: none;
+  background: var(--cael-secondaryContainer);
+  color: var(--cael-onSecondaryContainer);
+  font-weight: 500;
+}
+
+/* ==== 4. preferences: section tables ==== */
+#main_preferences div.pref-group,
+#main_preferences table tr.pref-group th {
+  border-radius: 12px;
+}
+
+/* ==== 5. preferences: selects ==== */
+/* rebuild the chevron from two token-tinted gradients (the stock one is a
+   baked-in grey data-URI svg); stock forces padding with !important */
+#main_preferences select {
+  border: 1px solid var(--cael-outlineVariant);
+  border-radius: 12px;
+  color: var(--cael-onSurface);
+  padding: 0.2rem 2rem 0.2rem 0.75rem !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--cael-onSurfaceVariant) 50%),
+    linear-gradient(135deg, var(--cael-onSurfaceVariant) 50%, transparent 50%);
+  background-position: calc(100% - 1.15rem) 50%, calc(100% - 0.8rem) 50%;
+  background-size: 0.35rem 0.35rem;
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  background-clip: border-box;
+  background-color: var(--cael-surfaceContainerHigh);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#main_preferences select:hover,
+#main_preferences select:focus {
+  background-color: var(--cael-surfaceContainerHighest);
+  border-color: color-mix(in srgb, var(--cael-primary) 45%, transparent);
+}
+
+/* ==== 6. preferences: text inputs ==== */
+#main_preferences input[type="text"] {
+  border: 1px solid var(--cael-outlineVariant);
+  border-radius: 12px;
+  background: var(--cael-surfaceContainerHigh);
+  color: var(--cael-onSurface);
+  padding: 0.2rem 0.75rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#main_preferences input[type="text"]:hover,
+#main_preferences input[type="text"]:focus {
+  background-color: var(--cael-surfaceContainerHighest);
+  border-color: color-mix(in srgb, var(--cael-primary) 45%, transparent);
+}
+
+/* soften the stock hard 1px focus glow into an M3-ish ring */
+#main_preferences .value select:focus,
+#main_preferences .value input:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cael-primary) 22%, transparent);
+}
+
+/* ==== 7. preferences: buttons (Save / Back / Reset defaults / copy) ==== */
+#main_preferences input[type="submit"],
+#main_preferences button.button,
+#main_preferences .preferences_back {
+  border-radius: 999px;
+  padding: 0.65em 1.5em;
+}
+
+#main_preferences input[type="submit"]:hover,
+#main_preferences .preferences_back:hover {
+  background: color-mix(in srgb, var(--cael-primary) 86%, var(--cael-onPrimary));
+}
+
+/* Back / Reset defaults are anchors on a primary pill: use onPrimary */
+#main_preferences .preferences_back a {
+  color: var(--cael-onPrimary);
+}
+
+/* ==== 8. images grid ====
+   restore the stock tile geometry that the generic #urls article.result
+   card rule clobbers (padding reserve for the absolute title/source rows,
+   the .25rem gutters and the 12rem tile height) */
+#urls article.result-images {
+  height: 12rem;
+  margin: 0.25rem;
+  padding: 0.5rem 0.5rem 3rem;
+  background: transparent;
+  border-radius: 16px;
+  transition: background 0.16s ease;
+}
+
+#urls article.result-images:hover {
+  background: var(--cael-surfaceContainerHigh);
+}
+
+/* keep the selected-tile highlight (vim nav + open detail view) */
+#urls article.result-images[data-vim-selected] {
+  background: var(--cael-primary);
+}
+
+@media screen and (max-width: 50em) {
+  #urls article.result-images {
+    height: 10rem;
+    margin: 0;
+  }
+}
+
+/* rounded thumbnails inside the tiles */
+.result-images img.image_thumbnail {
+  border-radius: 12px;
+}
+
+/* mute the stock grey broken-thumbnail placeholder */
+.result-images img.image_thumbnail[src$="img_load_error.svg"] {
+  opacity: 0.35;
+  background: var(--cael-surfaceContainerHigh);
+  border-radius: 12px;
+}
+
+/* resolution badge: hug the rounded thumbnail corner */
+.result-images .image_resolution {
+  border-top-left-radius: 10px;
+  border-bottom-right-radius: 12px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+/* detail view: round the hero image (colors come from the detail tokens) */
+#results.image-detail-open article.result-images[data-vim-selected] .detail a.result-images-source img {
+  border-radius: 16px;
+}
+
+/* ==== 9. video (and other) result thumbnails ==== */
+.result a.thumbnail_link img.thumbnail {
+  border-radius: 12px;
+}
+
+.result-videos a.thumbnail_link img.thumbnail {
+  border-radius: 16px;
+}
+
+/* duration badge: floating chip in the thumbnail corner */
+.result a.thumbnail_link .thumbnail_length {
+  border-radius: 8px;
+  bottom: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+/* secondary author row: quiet label, pill chips */
+.result .altlink {
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.85rem;
+}
+
+.result .altlink a {
+  border-radius: 999px;
+}
+
+/* ==== 10. sidebar collapsibles (Response time / Search URL / ...) ====
+   replace the bare hairline rows with soft cards matching the infobox */
+#sidebar .sidebar-collapsible {
+  border-top: none;
+  background: var(--cael-surfaceContainerLow);
+  border-radius: 16px;
+  padding: 0.1rem 1rem 0.65rem;
+  margin: 0 0 0.7rem;
+}
+
+#sidebar .sidebar-collapsible > summary.title::marker,
+#sidebar #suggestions details > summary::marker {
+  color: var(--cael-outline);
+}
+
+/* engines message table: restore the row separators that the transparent
+   --color-result-border mapping erased, and give the rows some air */
+#engines_msg .engine-stats tr td,
+#engines_msg .engine-stats tr th {
+  border-bottom: 1px solid var(--cael-outlineVariant);
+  padding: 0.4rem 0.5rem;
+}
+
+#engines_msg .engine-stats tr:last-child td {
+  border-bottom: none;
+}
+
+/* API download buttons + copy button: pills */
+#sidebar #apis input {
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+}
+
+#search_url button#copy_url {
+  border-radius: 999px;
+}
+
+/* search url / copy-hash boxes: match the 12px control radius */
+div.selectable_url {
+  border-radius: 12px;
+}
+
+/* ==== 11. error dialogs (no-results message et al.) ==== */
+.dialog-error,
+.dialog-error-block {
+  border-radius: 20px;
+  border-color: color-mix(in srgb, var(--cael-error) 40%, transparent);
+  padding: 1.1rem 1.4rem;
+}
+
+/* ==== 12. numbered pagination ====
+   stock underlines the links and forces a transparent background with
+   !important, half-undoing the caelestia pill chrome; finish the job */
+#pagination .numbered_pagination {
+  gap: 0.4rem;
+}
+
+#pagination .numbered_pagination input.page_number,
+#pagination .numbered_pagination input.page_number_current {
+  min-width: 2.4rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#pagination .numbered_pagination input.page_number {
+  /* !important needed: stock .page_number forces color/background */
+  color: var(--cael-onSurfaceVariant) !important;
+  background: var(--cael-surfaceContainer) !important;
+  border: 1px solid var(--cael-outlineVariant);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+#pagination .numbered_pagination input.page_number:hover {
+  color: var(--cael-onSecondaryContainer) !important;
+  background: var(--cael-secondaryContainer) !important;
+}
+
+#pagination .numbered_pagination input.page_number_current {
+  color: var(--cael-onSecondaryContainer);
+  background: var(--cael-secondaryContainer);
+  border: none;
+  font-weight: 600;
+  cursor: default;
+}
+
+/* ==== 13. /stats page ==== */
+/* engine table: card surface + separators (result-border is transparent) */
+#main_stats table.engine-stats {
+  background: var(--cael-surfaceContainerLow);
+  border-radius: 20px;
+}
+
+#main_stats .engine-stats tr td,
+#main_stats .engine-stats tr th {
+  border-bottom: 1px solid var(--cael-outlineVariant);
+  padding: 0.5rem 0.6rem;
+}
+
+#main_stats .engine-stats tr td:first-child,
+#main_stats .engine-stats tr th:first-child {
+  padding-left: 1.1rem;
+}
+
+#main_stats .engine-stats tr td:last-child,
+#main_stats .engine-stats tr th:last-child {
+  padding-right: 1.1rem;
+}
+
+#main_stats .engine-stats tr:first-child th {
+  padding-top: 0.9rem;
+}
+
+#main_stats .engine-stats tr:last-child td {
+  padding-bottom: 0.9rem;
+  border-bottom: none;
+}
+
+/* keep the hover tooltips' inner tables compact and borderless */
+#main_stats .engine-stats table.engine-tooltip td,
+#main_stats .engine-stats table.engine-tooltip th,
+#engines_msg .engine-stats table.engine-tooltip td,
+#engines_msg .engine-stats table.engine-tooltip th {
+  border: none;
+  padding: 0.15rem 0.4rem;
+}
+
+/* sortable column headers */
+#main_stats .engine-stats th a {
+  color: var(--cael-onSurfaceVariant);
+  text-decoration: none;
+}
+
+#main_stats .engine-stats th a:hover {
+  color: var(--cael-primary);
+}
+
+/* round the border-hack chart bars (colors come from the chart tokens) */
+#main_stats .bar-chart-bar,
+#main_stats .bar-chart-serie1,
+#main_stats .bar-chart-serie2,
+#engines_msg .bar-chart-bar {
+  border-radius: 3px;
+}

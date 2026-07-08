@@ -254,7 +254,7 @@ class SXNGPlugin(Plugin):
                 # custom hero-card template (bind mounted, see docker-compose.yml);
                 # it splits the answer string on the exact " = " / " (" separators
                 # produced above, so keep the format string and template in sync
-                template="answer/currency.html",
+                template="answer/cael/currency.html",
             )
         )
         return results

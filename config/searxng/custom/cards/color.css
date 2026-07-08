@@ -1,0 +1,94 @@
+/* Color swatch card (color_answer plugin, answer/cael/color.html).
+ *
+ * Loaded after caelestia.css; every rule is scoped to .cael-color*.
+ * All colors are cael scheme tokens; the swatch and chip fills themselves
+ * are inline styles emitted by the plugin (validated color strings).
+ */
+
+.cael-color {
+  align-items: stretch;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* the swatch: a checkerboard underlay that only shows through translucent
+   fills (#rrggbbaa), invisible under opaque colors */
+.cael-color-swatch {
+  display: flex;
+  flex: 1 1 15rem;
+  max-width: 26rem;
+  min-height: 9rem;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid var(--cael-outlineVariant);
+  background:
+    repeating-conic-gradient(
+      color-mix(in srgb, var(--cael-onSurfaceVariant) 18%, transparent) 0% 25%,
+      transparent 0% 50%
+    )
+    0 0 / 20px 20px;
+}
+
+.cael-color-fill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cael-color-hexval {
+  font-family: ui-monospace, "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  user-select: all;
+}
+
+.cael-color-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.cael-color-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.95rem;
+}
+
+.cael-color-label {
+  width: 7rem;
+  flex-shrink: 0;
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.cael-color-value {
+  font-family: ui-monospace, "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  color: var(--cael-onSurface);
+  white-space: nowrap;
+  user-select: all; /* one click selects the whole value for copy */
+}
+
+/* complement chip: plugin-colored pill, clicking it searches that color */
+.cael-color-chip {
+  display: inline-block;
+  padding: 0.24rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--cael-outlineVariant);
+  font-family: ui-monospace, "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cael-color-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--cael-shadow) 35%, transparent);
+}

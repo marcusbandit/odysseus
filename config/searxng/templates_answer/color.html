@@ -1,0 +1,45 @@
+{#- Swatch card for the color_answer plugin (ColorAnswer struct). Every value
+    interpolated into an inline style below is built and validated by the
+    plugin (normalized hex / "#000000" / "#ffffff"), never raw user input.
+    The checkerboard painted by color.css behind .cael-color-fill only shows
+    through translucent fills (#rrggbbaa). -#}
+<div class="cael-hero cael-color">
+  <div class="cael-color-swatch">
+    <div class="cael-color-fill" style="background: {{ answer.hex }}; color: {{ answer.text_on }}">
+      <span class="cael-color-hexval">{{ answer.hex }}</span>
+    </div>
+  </div>
+  <div class="cael-color-body">
+    <div class="cael-color-row">
+      <span class="cael-color-label">RGB</span>
+      <span class="cael-color-value">{{ answer.rgb }}</span>
+    </div>
+    <div class="cael-color-row">
+      <span class="cael-color-label">HSL</span>
+      <span class="cael-color-value">{{ answer.hsl }}</span>
+    </div>
+    {%- if answer.alpha -%}
+      <div class="cael-color-row">
+        <span class="cael-color-label">alpha</span>
+        <span class="cael-color-value">{{ answer.alpha }}</span>
+      </div>
+    {%- endif -%}
+    <div class="cael-color-row">
+      <span class="cael-color-label">luminance</span>
+      <span class="cael-color-value">{{ answer.luminance }}</span>
+    </div>
+    <div class="cael-color-row">
+      <span class="cael-color-label">complement</span>
+      <a class="cael-color-chip" href="{{ answer.complement_search }}"
+         style="background: {{ answer.complement_hex }}; color: {{ answer.complement_text_on }}"
+         title="{{ _('Search for') }} {{ answer.complement_hex }}">{{ answer.complement_hex }}</a>
+    </div>
+  </div>
+  {%- if answer.url -%}
+    <a href="{{ answer.url }}" class="answer-url"
+       {%- if results_on_new_tab %} target="_blank" rel="noopener noreferrer"
+       {%- else %} rel="noreferrer"
+       {%- endif -%}
+       >ColorHexa</a>
+  {%- endif -%}
+</div>

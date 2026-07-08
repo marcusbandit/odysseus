@@ -1,0 +1,25 @@
+{#- Hero card for the calc_answer plugin (CalcAnswer result type). All
+    values are precomputed by the plugin: expression (pretty echo of the
+    input), result (formatted number or base literal) and extra (small
+    context chips, e.g. all four bases for a base conversion). -#}
+<div class="cael-hero cael-calc">
+  <span class="cael-msr cael-hero-icon">calculate</span>
+  <div class="cael-hero-body">
+    <span class="cael-hero-label">{{ answer.expression }} =</span>
+    <span class="cael-hero-value">{{ answer.result }}</span>
+    {%- if answer.extra -%}
+      <div class="cael-calc-extra">
+        {%- for chip in answer.extra -%}
+          <span class="cael-calc-chip">{{ chip }}</span>
+        {%- endfor -%}
+      </div>
+    {%- endif -%}
+  </div>
+  {%- if answer.url -%}
+    <a href="{{ answer.url }}" class="answer-url"
+       {%- if results_on_new_tab %} target="_blank" rel="noopener noreferrer"
+       {%- else %} rel="noreferrer"
+       {%- endif -%}
+       >WolframAlpha</a>
+  {%- endif -%}
+</div>
