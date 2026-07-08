@@ -567,6 +567,90 @@ footer a {
   font-size: 1.1rem;
 }
 
+/* ==== 10b. wide-screen layout: actually use the window ====
+   Stock searxng anchors a fixed 45rem+25rem grid at margin-left 10rem, and
+   the "center alignment" preference merely caps the page at 73rem, so on
+   wide windows half the screen is dead space. These rules own the layout
+   for BOTH center-alignment classes (so a stale preferences cookie makes
+   no difference): fluid column widths that grow with the viewport, whole
+   grid centered, search header aligned over the results column. */
+@media screen and (min-width: 75em) {
+  :root {
+    --cael-col-main: 48rem;
+    --cael-col-side: 26rem;
+    --cael-col-gap: 4rem;
+    --cael-page-w: calc(var(--cael-col-main) + var(--cael-col-side) + var(--cael-col-gap));
+  }
+
+  /* neutralize the stock centering flex so one mechanism owns layout */
+  .center-alignment-yes #main_results {
+    display: block;
+  }
+
+  /* the stock rule to beat is
+     .center-alignment-yes #main_results #results:not(.only_template_images,
+     .image-detail-open) { grid-template-columns: ...; margin-left: 1.5rem },
+     where :not() adds a class to specificity. Match its :not() (which also
+     correctly leaves the full-width image grid alone) and add the div. */
+  #main_results div#results:not(.only_template_images, .image-detail-open),
+  .center-alignment-no #main_results div#results:not(.only_template_images, .image-detail-open),
+  .center-alignment-yes #main_results div#results:not(.only_template_images, .image-detail-open) {
+    grid-template:
+      "corrections sidebar" min-content
+      "answers sidebar" min-content
+      "urls sidebar" 1fr
+      "pagination sidebar" min-content
+      / var(--cael-col-main) var(--cael-col-side);
+    gap: 0 var(--cael-col-gap);
+    width: var(--cael-page-w);
+    max-width: none;
+    margin: 1rem auto 0;
+  }
+
+  .center-alignment-yes #main_results #urls {
+    margin-left: 0;
+  }
+
+  .center-alignment-yes #main_results #sidebar {
+    margin-right: 0;
+  }
+
+  /* search header: same centered width; the logo hangs in the left margin
+     so the search box left-aligns with the results column */
+  #search_header,
+  .center-alignment-yes #main_results #search_header {
+    width: var(--cael-page-w);
+    margin: 0 auto;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  #search_logo {
+    margin-left: -4.2rem;
+  }
+}
+
+@media screen and (min-width: 90em) {
+  :root {
+    --cael-col-main: 52rem;
+    --cael-col-side: 29rem;
+    --cael-col-gap: 5rem;
+  }
+}
+
+@media screen and (min-width: 110em) {
+  :root {
+    --cael-col-main: 58rem;
+    --cael-col-side: 32rem;
+    --cael-col-gap: 6rem;
+  }
+
+  /* let the search pill grow with the wider results column */
+  .search_box {
+    max-width: 50rem;
+  }
+}
+
 /* ==== 10. motion (subtle, exponential-feel easing) ==== */
 @media (prefers-reduced-motion: no-preference) {
   #answers {
