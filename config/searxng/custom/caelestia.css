@@ -103,6 +103,19 @@
 }
 
 /* ==== 2. global ==== */
+/* Material Symbols must be SERVED, not assumed installed: Firefox's font
+   fingerprinting protection hides locally installed fonts, so without this
+   the icons render as their raw ligature words. local() keeps browsers
+   that can see the system font from downloading the 5 MB file. */
+@font-face {
+  font-family: "Material Symbols Rounded";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: local("Material Symbols Rounded"),
+       url("fonts/material-symbols-rounded.woff2") format("woff2");
+}
+
 html {
   scrollbar-color: var(--cael-surfaceContainerHighest) transparent;
 }
@@ -117,7 +130,8 @@ body {
 }
 
 .cael-msr {
-  font-family: "Material Symbols Rounded";
+  font-family: "Material Symbols Rounded", sans-serif;
+  font-feature-settings: "liga";
   font-weight: normal;
   font-style: normal;
   line-height: 1;
@@ -574,10 +588,12 @@ footer a {
    for BOTH center-alignment classes (so a stale preferences cookie makes
    no difference): fluid column widths that grow with the viewport, whole
    grid centered, search header aligned over the results column. */
-@media screen and (min-width: 75em) {
+@media screen and (min-width: 78em) {
   :root {
-    --cael-col-main: 48rem;
-    --cael-col-side: 26rem;
+    /* every tier keeps total page width at least 4rem under the viewport
+       that activates it, so half-tiled windows never overflow sideways */
+    --cael-col-main: 46rem;
+    --cael-col-side: 24rem;
     --cael-col-gap: 4rem;
     --cael-page-w: calc(var(--cael-col-main) + var(--cael-col-side) + var(--cael-col-gap));
   }
@@ -615,19 +631,20 @@ footer a {
     margin-right: 0;
   }
 
-  /* search header: same centered width; the logo hangs in the left margin
-     so the search box left-aligns with the results column */
-  #search_header,
+  /* search header: same centered width; on the roomy tiers the logo hangs
+     in the left margin so the search box left-aligns with the results
+     column (see the 90em block) */
+  #main_results #search_header,
   .center-alignment-yes #main_results #search_header {
     width: var(--cael-page-w);
     margin: 0 auto;
     padding-left: 0;
     padding-right: 0;
+    /* stock reserves only 3rem for the logo; the text wordmark needs its
+       natural width or it runs under the search box */
+    grid-template-columns: auto 1fr;
   }
 
-  #search_logo {
-    margin-left: -4.2rem;
-  }
 }
 
 @media screen and (min-width: 90em) {
@@ -635,6 +652,13 @@ footer a {
     --cael-col-main: 52rem;
     --cael-col-side: 29rem;
     --cael-col-gap: 5rem;
+  }
+
+  /* roomy tiers only: hang the logo in the left margin so the search box
+     left-aligns with the results column (narrower tiers keep it in flow,
+     a clipped logo is worse than a 4.2rem misalignment) */
+  #main_results #search_logo {
+    margin-left: -4.2rem;
   }
 }
 
@@ -680,4 +704,45 @@ footer a {
       transform: translateY(8px) scale(0.985);
     }
   }
+}
+
+/* ==== 11. per-tab fixes ==== */
+
+/* images: the single-column layout stacks the sidebar collapsibles as
+   full-width bars ABOVE the grid; they are pure diagnostics noise there
+   (response time / search url / download), so drop them and give the
+   edge-to-edge grid some breathing room */
+#main_results div#results.only_template_images #engines_msg,
+#main_results div#results.only_template_images #search_url,
+#main_results div#results.only_template_images #apis {
+  display: none;
+}
+
+#main_results div#results.only_template_images {
+  margin: 1rem 2rem 0;
+}
+
+#main_results div#results.only_template_images #sidebar {
+  margin: 0 auto;
+  max-width: 72rem;
+  background: transparent;
+  border: none;
+}
+
+/* videos: rounded, slightly smaller thumbnails */
+.result-videos a.thumbnail_link img.thumbnail {
+  width: 15rem;
+  border-radius: 14px;
+}
+
+/* map results: compact the key-value table, mute the labels, round the
+   preview image */
+.result-map table th {
+  width: 9rem;
+  color: var(--cael-onSurfaceVariant);
+  font-size: 0.85rem;
+}
+
+.result-map img.image {
+  border-radius: 12px;
 }
