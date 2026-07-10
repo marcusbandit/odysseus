@@ -681,8 +681,18 @@ footer a {
     animation: cael-pop 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
 
+  /* fill-mode must be backwards, NOT both: 'both' keeps the animated
+     transform applied forever (even at identity), which makes every
+     article the containing block for position:fixed descendants and
+     collapses the image-detail panel to a 0x0 stub inside the tile */
   #urls article.result {
-    animation: cael-fade 0.3s ease both;
+    animation: cael-fade 0.3s ease backwards;
+  }
+
+  /* image tiles: no entrance animation at all (hundreds of tiles with
+     infinite scroll, and their .detail panel must stay viewport-fixed) */
+  #urls article.result-images {
+    animation: none;
   }
 
   #urls article.result:nth-child(1) { animation-delay: 0.02s; }
