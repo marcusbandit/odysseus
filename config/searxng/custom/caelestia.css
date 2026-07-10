@@ -756,3 +756,131 @@ footer a {
 .result-map img.image {
   border-radius: 12px;
 }
+
+/* ==== 12. motion: smooth every state change ==== */
+
+/* cross-document page transitions: searching, switching tabs and
+   pagination crossfade instead of hard-repainting (progressive
+   enhancement, ignored by browsers without support) */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 170ms;
+}
+
+:root {
+  --cael-ease: cubic-bezier(0.2, 0, 0, 1);
+  /* lets height animate to/from auto (details expand below) */
+  interpolate-size: allow-keywords;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* interactive affordances: colors, surfaces and focus rings glide */
+a,
+button,
+input,
+select,
+summary,
+label,
+.answer-url {
+  transition:
+    color 0.18s var(--cael-ease),
+    background-color 0.18s var(--cael-ease),
+    border-color 0.18s var(--cael-ease),
+    box-shadow 0.18s var(--cael-ease),
+    opacity 0.18s var(--cael-ease);
+}
+
+/* details expand/collapse (sidebar collapsibles, weather forecast,
+   engines table): animate open and close instead of snapping */
+details::details-content {
+  height: 0;
+  overflow: clip;
+  transition:
+    height 0.26s var(--cael-ease),
+    content-visibility 0.26s allow-discrete;
+}
+
+details[open]::details-content {
+  height: auto;
+}
+
+/* image viewer panel: fade in from display:none */
+#results.image-detail-open article.result-images[data-vim-selected] .detail {
+  transition:
+    opacity 0.2s var(--cael-ease),
+    display 0.2s allow-discrete;
+}
+
+@starting-style {
+  #results.image-detail-open article.result-images[data-vim-selected] .detail {
+    opacity: 0;
+  }
+}
+
+/* autocomplete dropdown fades in */
+.autocomplete {
+  transition:
+    opacity 0.15s var(--cael-ease),
+    display 0.15s allow-discrete;
+}
+
+@starting-style {
+  .autocomplete {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* result cards: gentle lift on hover (image tiles excluded: they host
+     the position-fixed detail panel and transforms would re-break it,
+     see section 10's fill-mode note) */
+  #urls article.result:not(.result-images) {
+    transition:
+      background 0.18s var(--cael-ease),
+      transform 0.18s var(--cael-ease);
+  }
+
+  #urls article.result:not(.result-images):hover {
+    transform: translateY(-1px);
+  }
+
+  /* image tiles: zoom the thumbnail itself instead, the img element has
+     no fixed descendants so a transform is safe there */
+  .result-images img.image_thumbnail {
+    transition: transform 0.22s var(--cael-ease);
+  }
+
+  #urls article.result-images:hover img.image_thumbnail {
+    transform: scale(1.03);
+  }
+
+  /* start page tiles + weather chip */
+  .cael-home-link,
+  .cael-home-weather {
+    transition:
+      background 0.18s var(--cael-ease),
+      color 0.18s var(--cael-ease),
+      transform 0.18s var(--cael-ease);
+  }
+
+  .cael-home-link:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
